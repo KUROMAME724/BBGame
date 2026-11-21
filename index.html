@@ -539,14 +539,15 @@
   /* ===== 動き：タイプ別の周回半径 =====
      アタック（flat）  : 序盤はスタジアムの約85%の大きな円、約13秒かけて
                          約23%まで縮み、最後は中心の相手に届く
-     スタミナ（round） : 約13%の小さな中心円のみ（基本は真ん中）
+     スタミナ（round） : 約25%の中心寄りの円（基本は真ん中寄りだが、
+                         以前の約13%より少し広く回る）
      防御（sharp）     : 約45%の中くらいの円で穏やかに周回 */
   function orbitRadius(p, maxD){
     if (p.b.tip === "flat"){
       var s = Math.min(1, battleT / 13);
       return maxD * (0.85 - 0.62 * s);
     }
-    if (p.b.tip === "round") return maxD * 0.13;
+    if (p.b.tip === "round") return maxD * 0.25;
     return maxD * 0.45;
   }
   /* 周回スピード（接線方向、px/秒）。アタックは速く、防御は穏やか。
