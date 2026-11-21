@@ -325,6 +325,7 @@
   var P = []; // 物理オブジェクト
   var raf = null, lastT = 0, boostReady = true;
   var slowmoT = 0; // 強い衝突直後のスロー（緩急用）
+  var battleT = 0; // バトル経過時間（お椀地形の効きと渦の縮小に使う）
   var cpuBoostT = 1.0; // 相手も自分でパワーアップするタイマー
 
   /* スタジアムを空きスペースにぴったり合わせる */
@@ -408,6 +409,7 @@
   function startCountdown(){
     state = "count";
     slowmoT = 0;
+    battleT = 0;
     cpuBoostT = 3.0 + Math.random()*1.0;
     shootBtn.style.display = "none";
     tapBtn.style.display = "none";
@@ -488,6 +490,7 @@
     /* 強い衝突の直後だけ一瞬スローにして、弾かれた勢いとの緩急をつける */
     var dt = rawDt;
     if (slowmoT > 0){ slowmoT -= rawDt; dt = rawDt * 0.32; }
+    battleT += rawDt;
     var r = stadium.clientWidth, size = r*0.162, rad = size/2;
     var cx = r/2, cy = r/2, maxD = r/2 - rad - r*0.035;
 
@@ -533,18 +536,32 @@
       var centerPull = 30 * (1.6 - 0.55 * p.b.move);
       p.vx += (-dy/d)*orbit*dt*2.2 - (dx/d)*speedRatio*dt*centerPull;
       p.vy += (dx/d)*orbit*dt*2.2 - (dy/d)*speedRatio*dt*centerPull;
+      /* スタジアムは真ん中に向かってくぼんだお椀型：中心から離れるほど
+         斜面に引かれて中心方向へ戻される（全ベイ共通の地形効果）。
+         中心から遠いほど強く、回転が落ちる／時間が経つほど相対的に強まるので、
+         終盤はどのベイもだんだん中心へ集まってくる */
+      var bowlK = 0.22 + 0.85 * (1 - speedRatio) + 0.5 * Math.min(1, battleT / 24);
+      p.vx += -(dx/d) * r * bowlK * (d / maxD) * dt;
+      p.vy += -(dy/d) * r * bowlK * (d / maxD) * dt;
       /* アタック（底が平ら）は実物どおり、中心に留まらずスタジアム全体を
          大きなループで走り回る：目標半径が外⇔中ほどを行ったり来たりして
          花びら状の軌道になり、ときどき中心を横切って反対側まで突っ切る。
          防御・スタミナの周回は今まで通り */
       if (p.b.tip === "flat"){
-        if (p.loopR == null){ p.loopR = maxD; p.loopDir = -1; p.crossT = 1.6 + Math.random()*1.8; p.crossX = null; }
+        /* お椀の斜面で、渦の半径は試合経過とともにだんだん短くなる：
+           ループの往復（速い）とは別に、往復の範囲そのもの（外側・内側とも）が
+           ゆっくり縮んでいく。序盤はスタジアムの8割前後の大きなループ、
+           終盤は2〜3割まで縮み、中心付近にいる防御・スタミナへ必ず届く */
+        var shrink = Math.min(1, battleT / 18);
+        var loopOuter = maxD * (1 - 0.60 * shrink);
+        var loopInner = maxD * (0.42 + (0.15 - 0.42) * shrink);
+        if (p.loopR == null){ p.loopR = loopOuter; p.loopDir = -1; p.crossT = 1.6 + Math.random()*1.8; p.crossX = null; }
         if (p.crossX != null){
           /* 突っ切り中：中心の向こう側の目標点へまっすぐ進む */
           var tx2 = p.crossX - p.x, ty2 = p.crossY - p.y, td = Math.hypot(tx2,ty2)||1;
           var rush = r * 1.9 * (0.4 + 0.6 * speedRatio);
           p.vx += (tx2/td)*rush*dt; p.vy += (ty2/td)*rush*dt;
-          if (td < r * 0.08){ p.crossX = null; p.crossT = 2.2 + Math.random()*2.2; p.loopR = maxD; p.loopDir = -1; }
+          if (td < r * 0.08){ p.crossX = null; p.crossT = 2.2 + Math.random()*2.2; p.loopR = loopOuter; p.loopDir = -1; }
         } else {
           p.crossT -= dt;
           if (p.crossT <= 0 && speedRatio > 0.3){
@@ -552,10 +569,12 @@
             p.crossX = cx + (cx - p.x) * 0.85;
             p.crossY = cy + (cy - p.y) * 0.85;
           }
-          /* 目標半径を行ったり来たりさせる（中心には寄り切らない） */
+          /* 目標半径を行ったり来たりさせる。範囲は上の loopOuter/loopInner で
+             時間とともに縮むので、中心へ寄り切らない序盤の動きを保ちつつ
+             終盤は中心付近まで届く */
           p.loopR += p.loopDir * dt * r * 0.16 * (0.5 + 0.5 * speedRatio);
-          if (p.loopR <= maxD * 0.42){ p.loopR = maxD * 0.42; p.loopDir = 1; }
-          if (p.loopR >= maxD){ p.loopR = maxD; p.loopDir = -1; }
+          if (p.loopR <= loopInner){ p.loopR = loopInner; p.loopDir = 1; }
+          if (p.loopR >= loopOuter){ p.loopR = loopOuter; p.loopDir = -1; }
           if (d > p.loopR){
             var pull = Math.min((d - p.loopR) * 3.0, r * 0.55);
             p.vx += -(dx/d) * pull * dt;
