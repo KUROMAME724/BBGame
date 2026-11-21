@@ -210,11 +210,11 @@
        round（スタミナ） = 基本は真ん中、小さな円だけ
        sharp（防御）     = その中間、中くらいの半径で穏やかに周回 */
   var BEYS = [
-    { id:"red",   name:"ほのおドラゴン", type:"🔥 アタック",     tip:"flat",  tipLabel:"そこ：たいら",   main:"#ef4444", dark:"#991b1b", light:"#fca5a5", blades:3, atk:1.4, decay:7.5, guard:1.0 },
-    { id:"blue",  name:"うみウェーブ",   type:"💧 スタミナ",     tip:"round", tipLabel:"そこ：まるい",   main:"#3b82f6", dark:"#1e3a8a", light:"#93c5fd", blades:4, atk:0.7, decay:2.7, guard:1.3 },
-    { id:"green", name:"もりタートル",   type:"🌿 ディフェンス", tip:"sharp", tipLabel:"そこ：とがった", main:"#22c55e", dark:"#14532d", light:"#86efac", blades:6, atk:0.7, decay:3.9, guard:0.6 }
+    { id:"red",   name:"ほのおドラゴン", type:"🔥 アタック",     tip:"flat",  tipLabel:"そこ：たいら",   main:"#ef4444", dark:"#991b1b", light:"#fca5a5", blades:3, atk:1.4, decay:5.0, guard:1.0 },
+    { id:"blue",  name:"うみウェーブ",   type:"💧 スタミナ",     tip:"round", tipLabel:"そこ：まるい",   main:"#3b82f6", dark:"#1e3a8a", light:"#93c5fd", blades:4, atk:0.7, decay:1.8, guard:1.3 },
+    { id:"green", name:"もりタートル",   type:"🌿 ディフェンス", tip:"sharp", tipLabel:"そこ：とがった", main:"#22c55e", dark:"#14532d", light:"#86efac", blades:6, atk:0.7, decay:2.6, guard:0.6 }
   ];
-  /* ゲージ満タン量（プレイヤー側）。CPU側は基礎倍率ぶんだけ少し大きい */
+  /* ゲージ満タン量（プレイヤー側）。CPU側は基礎倍率ぶんだけ変わる（通常戦は1.15倍、ボス戦は合計で約1.35倍） */
 
   /* 底の形の横から見た図（選択カード用） */
   function tipSVG(b){
@@ -387,11 +387,12 @@
     cpuStrong = (battleCount % 3 === 0);
     var pool = BEYS.filter(function(b){ return b.id !== myBey.id; });
     var base = pool[Math.floor(Math.random()*pool.length)];
-    /* 通常戦の相手は基礎ステータスだけ 1.15倍。それ以外の仕組み
+    /* 通常戦の相手は基礎倍率 1.15。それ以外の仕組み
        （ダメージ・弾かれ方・バースト条件・減衰など）は両者完全に対称 */
     cpuBey = Object.assign({}, base, { cpuMult: 1.15 });
     if (cpuStrong){
-      /* 3回に1回は格上のボス戦：基礎倍率と合わせて約1.35倍 */
+      /* 3回に1回は格上のボス戦：基礎倍率1.15にボス追加分（約1.18倍）を
+         掛けて、合計で約1.35倍 */
       cpuBey = Object.assign({}, cpuBey, { cpuMult: cpuBey.cpuMult * 1.18 });
     }
     startCountdown();
@@ -450,7 +451,7 @@
       var R = orbitRadius(p, maxD);
       var a = p.me ? Math.PI*0.75 : Math.PI*1.75;
       p.x = cx + Math.cos(a)*R; p.y = cy + Math.sin(a)*R;
-      var sp = r * 0.55;
+      var sp = r * 0.80;
       p.vx = -Math.sin(a)*sp*p.dir; p.vy = Math.cos(a)*sp*p.dir;
     });
     hintEl.textContent = cpuStrong ? "👑 ボスだ！ たたかいを みててね！" : "たたかいを みててね！";
@@ -459,21 +460,22 @@
   }
 
   /* ===== 動き：タイプ別の周回半径 =====
-     アタック（flat）  : 序盤はスタジアムの約85%の大きな円、約25秒かけて
+     アタック（flat）  : 序盤はスタジアムの約85%の大きな円、約13秒かけて
                          約23%まで縮み、最後は中心の相手に届く
      スタミナ（round） : 約13%の小さな中心円のみ（基本は真ん中）
      防御（sharp）     : 約45%の中くらいの円で穏やかに周回 */
   function orbitRadius(p, maxD){
     if (p.b.tip === "flat"){
-      var s = Math.min(1, battleT / 25);
+      var s = Math.min(1, battleT / 13);
       return maxD * (0.85 - 0.62 * s);
     }
     if (p.b.tip === "round") return maxD * 0.13;
     return maxD * 0.45;
   }
-  /* 周回スピード（接線方向、px/秒）。アタックは速く、防御は穏やか */
+  /* 周回スピード（接線方向、px/秒）。アタックは速く、防御は穏やか。
+     全タイプとも従来比で約1.45倍の速さ */
   function orbitSpeed(p, r, speedRatio){
-    var base = p.b.tip === "flat" ? 0.95 : (p.b.tip === "round" ? 0.45 : 0.6);
+    var base = p.b.tip === "flat" ? 1.38 : (p.b.tip === "round" ? 0.65 : 0.87);
     return r * base * (0.35 + 0.65 * speedRatio);
   }
 
@@ -490,9 +492,9 @@
 
     P.forEach(function(p){
       /* ゲージの自然な減り：タイプ特性 decay のまま（両者同じ計算）。
-         アタックは速く（約13秒で満タン→0）、防御は普通（約26秒）、
-         スタミナは遅い（約37秒）。CPUは上限が倍率ぶん大きいので、
-         同じ減り方でも少し長持ちする */
+         アタックは速く（約20秒で満タン→0）、防御は普通（約38秒）、
+         スタミナは遅い（約55秒）。CPUの上限は倍率ぶんだけ変わる
+         （通常戦は1.15倍ぶん少し大きく、ボス戦はさらに大きい） */
       p.spin -= dt * p.b.decay;
       if (p.spin < 0) p.spin = 0;
       if (p.clashCd > 0) p.clashCd -= dt;
@@ -509,19 +511,19 @@
       } else {
         /* 目標速度＝接線方向の周回＋目標半径へ寄せるバネ、へ滑らかに寄せる */
         var targetR = orbitRadius(p, maxD);
-        var radialV = (targetR - d) * 2.4;
-        var cap = r * 0.5;
+        var radialV = (targetR - d) * 3.5;
+        var cap = r * 0.72;
         if (radialV > cap) radialV = cap; else if (radialV < -cap) radialV = -cap;
         var os = orbitSpeed(p, r, speedRatio);
         var desVx = tx*os + ux*radialV;
         var desVy = ty*os + uy*radialV;
-        var steer = Math.min(1, dt*3.2);
+        var steer = Math.min(1, dt*4.6);
         p.vx += (desVx - p.vx) * steer;
         p.vy += (desVy - p.vy) * steer;
       }
       /* 速度の上限：弾かれた直後だけ大きく許す */
       var v = Math.hypot(p.vx,p.vy);
-      var vmax = p.kickT > 0 ? r*1.7 : r*1.15;
+      var vmax = p.kickT > 0 ? r*2.45 : r*1.67;
       if (v > vmax){
         if (p.kickT > 0){ var softCap = vmax + (v - vmax) * Math.max(0, 1 - dt*3); p.vx *= softCap/v; p.vy *= softCap/v; }
         else { p.vx *= vmax/v; p.vy *= vmax/v; }
@@ -539,7 +541,7 @@
           if (dot > r*0.4){ sparks(p.x, p.y, 6); SFX.clash(false); p.spin -= 1.2; }
         }
       }
-      p.ang += dt * (p.me?1:-1) * p.spin * 0.55;
+      p.ang += dt * (p.me?1:-1) * p.spin * 0.80;
       p.el.style.transform = "translate("+(p.x-rad)+"px,"+(p.y-rad)+"px) rotate("+p.ang+"deg)";
       p.el.classList.toggle("wobble", speedRatio < 0.3 && p.spin > 0);
     });
@@ -681,7 +683,7 @@
     (function celeb(now){
       if (state !== "end") return;
       var t = (now-start)/1000;
-      winner.ang += 0.25;
+      winner.ang += 0.36;
       var r = stadium.clientWidth, rad = r*0.162/2;
       winner.el.style.transform = "translate("+(winner.x-rad)+"px,"+(winner.y-rad)+"px) rotate("+winner.ang+"deg) scale("+(1+Math.sin(t*6)*0.05)+")";
       if (t < 1.6) requestAnimationFrame(celeb);
