@@ -386,19 +386,19 @@
     cpuStrong = (battleCount % 3 === 0);
     var pool = BEYS.filter(function(b){ return b.id !== myBey.id; });
     var base = pool[Math.floor(Math.random()*pool.length)];
-    /* 通常戦はほぼ対等：相手はほんの少しだけ強い程度。
-       ブーストをうまく使えば大人でも子供でも普通に勝てるバランス */
+    /* 通常戦の相手は基礎ステータスだけ 1.15倍。それ以外の仕組み
+       （ダメージ・弾かれ方・バースト条件・減衰など）は両者完全に対称 */
     cpuBey = Object.assign({}, base, {
-      power: base.power * 1.02,
-      stamina: base.stamina * 1.0,
+      power: base.power * 1.15,
+      stamina: base.stamina * 1.15,
       move: base.move,
       roam: base.roam
     });
     if (cpuStrong){
-      /* 3回に1回は格上のボス戦。強めだがブースト連打と当て方で勝てる */
+      /* 3回に1回は格上のボス戦：基礎倍率と合わせて約1.35倍 */
       cpuBey = Object.assign({}, cpuBey, {
         power: cpuBey.power * 1.18,
-        stamina: cpuBey.stamina * 1.15,
+        stamina: cpuBey.stamina * 1.18,
         move: Math.min(2.2, cpuBey.move * 1.05)
       });
     }
@@ -408,7 +408,7 @@
   function startCountdown(){
     state = "count";
     slowmoT = 0;
-    cpuBoostT = 2.0 + Math.random()*1.0;
+    cpuBoostT = 3.0 + Math.random()*1.0;
     shootBtn.style.display = "none";
     tapBtn.style.display = "none";
     resultEl.style.display = "none";
@@ -486,25 +486,24 @@
     var r = stadium.clientWidth, size = r*0.162, rad = size/2;
     var cx = r/2, cy = r/2, maxD = r/2 - rad - r*0.035;
 
-    /* 相手もたまに突っ込んでくるが、回復は小さく間隔も広め。
-       きみのブーストの方がずっと強いのが勝ち筋 */
+    /* 相手の自己ブースト：回復+6、間隔3.0〜4.0秒、ダッシュは控えめ。
+       きみのタップブースト（回復+10）の方が強い */
     if (P.length===2){
       cpuBoostT -= dt;
       if (cpuBoostT <= 0){
         var cpu = P[1], you = P[0];
-        cpu.spin = Math.min(cpu.max, cpu.spin + (cpuStrong ? 6 : 4));
+        cpu.spin = Math.min(cpu.max, cpu.spin + 6);
         var cdx = you.x-cpu.x, cdy = you.y-cpu.y, cd = Math.hypot(cdx,cdy)||1;
-        cpu.vx += cdx/cd * r * 0.32; cpu.vy += cdy/cd * r * 0.32;
+        cpu.vx += cdx/cd * r * 0.22; cpu.vy += cdy/cd * r * 0.22;
         cpu.kickT = 0.4; cpu.mode = "chase"; cpu.paceT = 1.3; cpu.modeT = 0.7;
         sparks(cpu.x, cpu.y, 6);
-        cpuBoostT = cpuStrong ? (2.6 + Math.random()*1.0) : (3.4 + Math.random()*1.2);
+        cpuBoostT = 3.0 + Math.random()*1.0;
       }
     }
 
     P.forEach(function(p, idx){
-      /* 疲れ方は対等。むしろ きみ の方がほんの少しだけ長持ちする */
+      /* 疲れ方は両者まったく同じ計算 */
       var decay = dt * (2.6 / p.b.stamina) * (0.8 + 0.25 * p.b.move);
-      if (p.me) decay *= 0.88;
       p.spin -= decay;
       if (p.spin < 0) p.spin = 0;
       if (p.clashCd > 0) p.clashCd -= dt;
@@ -613,22 +612,22 @@
           /* 弾かれた後は少し休んでからまた動き出す（間） */
           a.mode = "drift"; a.paceT = 0.5; a.modeT = 0.45 + Math.random()*0.3;
           b.mode = "drift"; b.paceT = 0.5; b.modeT = 0.45 + Math.random()*0.3;
-          /* ダメージ：計算は対等で、きみ の一撃が少しだけ重い */
+          /* ダメージ：両者まったく同じ計算（差は基礎ステータスの倍率だけ） */
           var dmgA = (3.5 + Math.random()*4.5) * b.b.power * (hard?1.5:1.1);
-          var dmgB = (3.5 + Math.random()*4.5) * a.b.power * (hard?1.5:1.1) * 1.2;
+          var dmgB = (3.5 + Math.random()*4.5) * a.b.power * (hard?1.5:1.1);
           a.spin -= dmgA; b.spin -= dmgB;
           sparks((a.x+b.x)/2, (a.y+b.y)/2, hard?14:8);
           ringFx((a.x+b.x)/2, (a.y+b.y)/2);
           SFX.clash(hard);
           if (navigator.vibrate) navigator.vibrate(hard?60:25);
-          /* バースト：どちらも回転が減ってきた時だけ。相手の方が起きやすい */
+          /* バースト：閾値も確率も両者まったく同じ */
           if (hard){
-            if (a.spin < a.max*0.18 && Math.random()<0.25) return finish(a, true);
-            if (b.spin < b.max*0.28 && Math.random()<0.45) return finish(b, true);
+            if (a.spin < a.max*0.22 && Math.random()<0.35) return finish(a, true);
+            if (b.spin < b.max*0.22 && Math.random()<0.35) return finish(b, true);
           } else {
             /* 通常ヒットでも、残りわずかなら両方とも たまにバーストする */
-            if (a.spin < a.max*0.10 && Math.random()<0.10) return finish(a, true);
-            if (b.spin < b.max*0.14 && Math.random()<0.18) return finish(b, true);
+            if (a.spin < a.max*0.12 && Math.random()<0.14) return finish(a, true);
+            if (b.spin < b.max*0.12 && Math.random()<0.14) return finish(b, true);
           }
         } else if (approach > 0){
           /* クールダウン中はすり抜けず、軽く押し合いだけ続ける */
@@ -669,11 +668,11 @@
   }
 
   /* ===== ブースト ===== */
-  /* ブースト：回転が大きく戻り、相手へ強く突っ込める。タップが勝ち筋になる強さ */
+  /* ブースト：回転が+10戻り、相手へ強く突っ込める。再使用は1.1秒 */
   function boost(){
     if (state !== "battle" || !boostReady) return;
     var me = P[0], foe = P[1]; if(!me || !foe) return;
-    me.spin = Math.min(me.max, me.spin + 14);
+    me.spin = Math.min(me.max, me.spin + 10);
     var dx = foe.x-me.x, dy = foe.y-me.y, d = Math.hypot(dx,dy)||1;
     var r = stadium.clientWidth;
     me.vx += dx/d*r*0.55; me.vy += dy/d*r*0.55;
@@ -681,7 +680,7 @@
     SFX.boost();
     sparks(me.x, me.y, 7);
     boostReady = false; tapBtn.classList.add("cool");
-    setTimeout(function(){ boostReady = true; tapBtn.classList.remove("cool"); }, 900);
+    setTimeout(function(){ boostReady = true; tapBtn.classList.remove("cool"); }, 1100);
   }
   tapBtn.addEventListener("click", boost);
   stadium.addEventListener("pointerdown", function(){ if (state==="battle") boost(); });
