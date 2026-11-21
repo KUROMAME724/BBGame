@@ -41,16 +41,17 @@
   #beyChoices{display:flex; gap:10px; justify-content:center; margin-top:12px; flex-wrap:nowrap; width:100%;}
   .choice{
     border:4px solid var(--card-border); background:var(--panel); border-radius:24px;
-    flex:1 1 0; max-width:170px; min-height:148px; padding:10px 4px 8px; cursor:pointer;
+    flex:1 1 0; min-width:0; max-width:170px; min-height:148px; padding:10px 4px 8px; cursor:pointer;
     display:flex; flex-direction:column; align-items:center; gap:6px;
     font-family:inherit; color:var(--ink);
     transition:transform .12s ease, border-color .12s ease, box-shadow .12s ease;
   }
   .choice:active{transform:scale(.95);}
   .choice.sel{border-color:var(--accent); box-shadow:0 0 0 4px rgba(255,207,63,.35), 0 10px 24px rgba(0,0,0,.18); transform:scale(1.04);}
-  .choice .cname{font-size:clamp(13px,3.6vw,21px); font-weight:900; white-space:nowrap;}
-  .choice .ctype{font-size:clamp(11px,2.8vw,15px); font-weight:800; color:var(--sub); white-space:nowrap;}
-  .choice .ctip{display:flex; align-items:center; gap:5px; font-size:clamp(10px,2.6vw,13px); font-weight:800; color:var(--sub); white-space:nowrap;}
+  /* カード幅に必ず収まる文字サイズにする（名前が枠にはみ出して重なるのを防ぐ） */
+  .choice .cname{font-size:clamp(11px,3.1vw,20px); font-weight:900; white-space:nowrap; max-width:100%;}
+  .choice .ctype{font-size:clamp(10px,2.6vw,14px); font-weight:800; color:var(--sub); white-space:nowrap; max-width:100%;}
+  .choice .ctip{display:flex; align-items:center; gap:5px; font-size:clamp(9px,2.4vw,12px); font-weight:800; color:var(--sub); white-space:nowrap; max-width:100%;}
   .choice .ctip svg{width:26px; height:20px; flex:none;}
   .choice svg{width:min(17vw,96px); height:min(17vw,96px);}
 
@@ -144,6 +145,12 @@
   @keyframes fall{to{transform:translateY(112vh) rotate(720deg);}}
   @media (prefers-reduced-motion: reduce){
     .confetti{display:none;}
+  }
+  /* 狭い画面ではカードの余白と枠を詰めて、文字がはみ出さないようにする */
+  @media (max-width:480px){
+    .choice{border-width:3px; padding:8px 2px 6px; border-radius:20px;}
+    .choice .ctip{gap:4px;}
+    .choice .ctip svg{width:20px; height:16px;}
   }
   /* 背の低い画面でもスクロールせず収まるように詰める */
   @media (max-height:620px){
@@ -313,12 +320,12 @@
   var gauges  = document.getElementById("gauges");
   var resultEl= document.getElementById("result");
   var myBey = null, cpuBey = null;
-  var battleCount = 0, cpuStrong = false; // 3回に1回、相手がさらに強くなる（節度なしモードでは毎回が本気）
+  var battleCount = 0, cpuStrong = false; // 3回に1回、相手がボスとしてさらに強くなる
   var state = "pick"; // pick | count | battle | end
   var P = []; // 物理オブジェクト
   var raf = null, lastT = 0, boostReady = true;
   var slowmoT = 0; // 強い衝突直後のスロー（緩急用）
-  var cpuBoostT = 1.0; // 相手も自分でパワーアップするタイマー（節度なし：短間隔で連発）
+  var cpuBoostT = 1.0; // 相手も自分でパワーアップするタイマー
 
   /* スタジアムを空きスペースにぴったり合わせる */
   var stageWrap = document.getElementById("stageWrap");
@@ -379,20 +386,20 @@
     cpuStrong = (battleCount % 3 === 0);
     var pool = BEYS.filter(function(b){ return b.id !== myBey.id; });
     var base = pool[Math.floor(Math.random()*pool.length)];
-    /* 節度なしモード：負けを覚えるため、手加減は一切なし。
-       通常戦でも相手は攻撃・持久ともに別格。勝てるのは本当にうまく当たった時だけ */
+    /* 相手は素より一回り強い。負けることも多いが、
+       うまく当ててブーストを使えば勝てるバランス */
     cpuBey = Object.assign({}, base, {
-      power: base.power * 2.15,
-      stamina: base.stamina * 1.95,
-      move: Math.min(2.4, base.move * 1.45 + 0.35),
+      power: base.power * 1.35,
+      stamina: base.stamina * 1.3,
+      move: Math.min(2.2, base.move * 1.15 + 0.15),
       roam: 1.0
     });
     if (cpuStrong){
-      /* 3回に1回はさらに格上：ほぼ勝てないボス戦 */
+      /* 3回に1回はさらに格上のボス戦。それでも勝ち筋はある */
       cpuBey = Object.assign({}, cpuBey, {
-        power: cpuBey.power * 1.55,
-        stamina: cpuBey.stamina * 1.45,
-        move: Math.min(2.6, cpuBey.move * 1.2)
+        power: cpuBey.power * 1.3,
+        stamina: cpuBey.stamina * 1.25,
+        move: Math.min(2.4, cpuBey.move * 1.15)
       });
     }
     startCountdown();
@@ -419,9 +426,9 @@
     P.forEach(function(p){
       p.el.style.transform = "translate("+(p.x-size/2)+"px,"+(p.y-size/2)+"px)";
     });
-    /* 節度なし：通常戦でも金色に光らせて「強い相手」だと一目で分かるように */
-    P[1].el.classList.add("strong");
-    document.querySelector("#gCpu .who").textContent = cpuStrong ? "👑👑 ボス あいて" : "👑 つよい あいて";
+    /* 金色の光と王冠はボス戦だけ。通常戦の相手は通常表示 */
+    if (cpuStrong) P[1].el.classList.add("strong");
+    document.querySelector("#gCpu .who").textContent = cpuStrong ? "👑 ボス あいて" : "あいて 🤖";
     updateGauges();
 
     countEl.style.display = "flex";
@@ -451,7 +458,7 @@
       if (idx===1){ p.vx = -p.vx*0.9; p.vy = -p.vy*0.9; }
     });
     tapBtn.style.display = "block";
-    hintEl.textContent = cpuStrong ? "👑👑 ボスだ！ まけても くじけるな！" : "👑 つよい あいてだ！ まけるのも べんきょうだよ！";
+    hintEl.textContent = cpuStrong ? "👑 ボスだ！ きあいで たたかおう！" : "タップで パワーアップ！ うまく あてよう！";
     boostReady = true; tapBtn.classList.remove("cool");
     lastT = performance.now();
     raf = requestAnimationFrame(tick);
@@ -459,13 +466,13 @@
 
   /* ===== 物理ループ ===== */
   function pickMode(p){
-    /* 節度なし：CPUはほぼ常に追いかけてくる。逃げ回っても追いつかれる */
+    /* CPUは自分より少し積極的に追いかけてくるが、常時ではない */
     var roll = Math.random();
     var mv = p.b.move;
     var base = p.b.power >= 1.1 ? 0.48 : (p.b.power >= 0.9 ? 0.36 : 0.24);
-    if (!p.me) base += 0.55; /* CPUは突っ込み一択に近い */
-    var chaseW = p.me ? Math.min(0.66, Math.max(0.05, base * mv)) : 0.92;
-    var dur = (1.25 - 0.32 * mv) * (p.me ? 1 : 0.55); /* CPUは切り替えも異常に速い */
+    if (!p.me) base += 0.3; /* CPUはやや突っ込み気味 */
+    var chaseW = p.me ? Math.min(0.66, Math.max(0.05, base * mv)) : 0.78;
+    var dur = (1.25 - 0.32 * mv) * (p.me ? 1 : 0.8); /* CPUは切り替えも少し速い */
     if (roll < chaseW){ p.mode = "chase"; p.paceT = 0.9 + 0.5*mv;  p.modeT = (0.7 + Math.random()*0.7) * dur; }
     else if (roll < chaseW + 0.38){ p.mode = "orbit"; p.paceT = 0.55 + 0.45*mv; p.modeT = (0.9 + Math.random()*1.1) * dur; }
     else { p.mode = "drift"; p.paceT = 0.25 + 0.25*mv; p.modeT = (0.8 + Math.random()*0.9) * dur; }
@@ -480,25 +487,24 @@
     var r = stadium.clientWidth, size = r*0.162, rad = size/2;
     var cx = r/2, cy = r/2, maxD = r/2 - rad - r*0.035;
 
-    /* 節度なし：相手は短い間隔で大きく回復しながら猛突進してくる */
+    /* 相手も時々パワーアップして突っ込んでくるが、間隔は広め・回復は控えめ */
     if (P.length===2){
       cpuBoostT -= dt;
       if (cpuBoostT <= 0){
         var cpu = P[1], you = P[0];
-        cpu.spin = Math.min(cpu.max, cpu.spin + (cpuStrong ? 22 : 16));
+        cpu.spin = Math.min(cpu.max, cpu.spin + (cpuStrong ? 12 : 8));
         var cdx = you.x-cpu.x, cdy = you.y-cpu.y, cd = Math.hypot(cdx,cdy)||1;
-        cpu.vx += cdx/cd * r * 1.05; cpu.vy += cdy/cd * r * 1.05;
-        cpu.kickT = 0.7; cpu.mode = "chase"; cpu.paceT = 2.1; cpu.modeT = 1.0;
+        cpu.vx += cdx/cd * r * 0.55; cpu.vy += cdy/cd * r * 0.55;
+        cpu.kickT = 0.7; cpu.mode = "chase"; cpu.paceT = 1.7; cpu.modeT = 1.0;
         sparks(cpu.x, cpu.y, 9);
-        cpuBoostT = cpuStrong ? (0.9 + Math.random()*0.5) : (1.15 + Math.random()*0.6);
+        cpuBoostT = cpuStrong ? (1.6 + Math.random()*0.8) : (2.2 + Math.random()*1.0);
       }
     }
 
     P.forEach(function(p, idx){
-      /* 節度なし：きみは早く疲れ、相手はほとんど疲れない */
+      /* 相手は少しだけ疲れにくい程度。きみの減り方は通常通り */
       var decay = dt * (2.6 / p.b.stamina) * (0.8 + 0.25 * p.b.move);
-      if (!p.me) decay *= 0.32;
-      else decay *= 1.35;
+      if (!p.me) decay *= 0.75;
       p.spin -= decay;
       if (p.spin < 0) p.spin = 0;
       if (p.clashCd > 0) p.clashCd -= dt;
@@ -524,9 +530,9 @@
       p.vx += (-dy/d)*orbit*dt*2.2 - (dx/d)*speedRatio*dt*centerPull;
       p.vy += (dx/d)*orbit*dt*2.2 - (dy/d)*speedRatio*dt*centerPull;
       if (p.mode === "chase" && foe){
-        /* CPUの突進は節度なし：加速が段違いで、逃げ切れない */
+        /* CPUの突進は自分より速いが、逃げ切れる場面もある */
         var fx = foe.x-p.x, fy = foe.y-p.y, fd = Math.hypot(fx,fy)||1;
-        var chase = r * 1.5 * speedRatio * (0.5 + 0.5 * p.b.move) * (p.me ? 0.85 : 2.3);
+        var chase = r * 1.5 * speedRatio * (0.5 + 0.5 * p.b.move) * (p.me ? 1.0 : 1.45);
         p.vx += (fx/fd)*chase*dt; p.vy += (fy/fd)*chase*dt;
       } else if (p.mode === "drift"){
         /* 流れるときは軽くブレーキをかけてゆっくりに */
@@ -558,10 +564,10 @@
         p.x = cx + nx*maxD; p.y = cy + ny*maxD;
         var dot = p.vx*nx + p.vy*ny;
         if (dot > 0){
-          /* 壁にもバチンと弾かれる。節度なし：壁に叩きつけられた きみ は回転も削れる */
+          /* 壁にもバチンと弾かれる。強く叩きつけられた きみ は回転も少し削れる */
           p.vx -= 1.9*dot*nx; p.vy -= 1.9*dot*ny;
           p.vx *= 0.94; p.vy *= 0.94;
-          if (dot > r*0.4){ sparks(p.x, p.y, 6); SFX.clash(false); if (p.me) p.spin -= 4; }
+          if (dot > r*0.4){ sparks(p.x, p.y, 6); SFX.clash(false); if (p.me) p.spin -= 2; }
         }
       }
       p.ang += dt * (p.me?1:-1) * p.spin * 0.55;
@@ -590,11 +596,11 @@
           var impulse = (1 + rest) * approach / 2;
           a.vx -= impulse*nx; a.vy -= impulse*ny;
           b.vx += impulse*nx; b.vy += impulse*ny;
-          /* 節度なしノックバック：きみだけが大きく吹っ飛び、相手はほとんど動じない */
+          /* ノックバック：きみの方が少し大きく弾かれるが、相手もちゃんと飛ぶ */
           var avgSpin = (a.spin/a.max + b.spin/b.max) / 2;
           var kick = r * (0.16 + 0.30*avgSpin) + approach * 0.28;
-          a.vx -= nx*kick*1.9; a.vy -= ny*kick*1.9;
-          b.vx += nx*kick*0.35; b.vy += ny*kick*0.35;
+          a.vx -= nx*kick*1.25; a.vy -= ny*kick*1.25;
+          b.vx += nx*kick*0.8; b.vy += ny*kick*0.8;
           /* 横方向のキック：当たったあとカーブして離れる、本物のベイらしい動き */
           var tx = -ny, ty = nx;
           var swerve = (Math.random()*0.7 + 0.5) * r * 0.22 * (Math.random() < 0.5 ? 1 : -1);
@@ -607,21 +613,21 @@
           /* 弾かれた後は少し休んでからまた動き出す（間） */
           a.mode = "drift"; a.paceT = 0.5; a.modeT = 0.45 + Math.random()*0.3;
           b.mode = "drift"; b.paceT = 0.5; b.modeT = 0.45 + Math.random()*0.3;
-          /* 節度なしダメージ：ぶつかるたびに きみだけが大きく削れる */
-          var dmgA = (3.5 + Math.random()*4.5) * b.b.power * (hard?2.1:1.35);
-          var dmgB = (3.5 + Math.random()*4.5) * a.b.power * (hard?1.7:1) * 0.28;
+          /* ダメージ：相手の方が少し削りが大きい程度で、こちらも与えられる */
+          var dmgA = (3.5 + Math.random()*4.5) * b.b.power * (hard?1.5:1.1);
+          var dmgB = (3.5 + Math.random()*4.5) * a.b.power * (hard?1.7:1) * 0.8;
           a.spin -= dmgA; b.spin -= dmgB;
           sparks((a.x+b.x)/2, (a.y+b.y)/2, hard?14:8);
           ringFx((a.x+b.x)/2, (a.y+b.y)/2);
           SFX.clash(hard);
           if (navigator.vibrate) navigator.vibrate(hard?60:25);
-          /* 節度なしバースト：きみは半分近く残っていても弾け飛び、相手はほぼバーストしない */
+          /* バースト：どちらも回転が減ってきた時だけ起きる。相手にも十分起きる */
           if (hard){
-            if (a.spin < a.max*0.48 && Math.random()<0.78) return finish(a, true);
-            if (b.spin < b.max*0.10 && Math.random()<0.12) return finish(b, true);
+            if (a.spin < a.max*0.30 && Math.random()<0.45) return finish(a, true);
+            if (b.spin < b.max*0.18 && Math.random()<0.30) return finish(b, true);
           } else {
-            /* 通常ヒットでも、残り少ないきみはたまにバーストする */
-            if (a.spin < a.max*0.22 && Math.random()<0.28) return finish(a, true);
+            /* 通常ヒットでも、残りわずかなら たまにバーストする */
+            if (a.spin < a.max*0.12 && Math.random()<0.15) return finish(a, true);
           }
         } else if (approach > 0){
           /* クールダウン中はすり抜けず、軽く押し合いだけ続ける */
@@ -662,19 +668,19 @@
   }
 
   /* ===== ブースト ===== */
-  /* 節度なし：連打してもほとんど盛り返せない。気休め程度のブースト */
+  /* ブースト：回転がしっかり戻り、相手へ突っ込める。勝ち筋になる強さ */
   function boost(){
     if (state !== "battle" || !boostReady) return;
     var me = P[0], foe = P[1]; if(!me || !foe) return;
-    me.spin = Math.min(me.max, me.spin + 2.5);
+    me.spin = Math.min(me.max, me.spin + 7);
     var dx = foe.x-me.x, dy = foe.y-me.y, d = Math.hypot(dx,dy)||1;
     var r = stadium.clientWidth;
-    me.vx += dx/d*r*0.18; me.vy += dy/d*r*0.18;
+    me.vx += dx/d*r*0.3; me.vy += dy/d*r*0.3;
     me.kickT = 0.22; me.mode = "chase"; me.paceT = 1.15; me.modeT = 0.4;
     SFX.boost();
     sparks(me.x, me.y, 4);
     boostReady = false; tapBtn.classList.add("cool");
-    setTimeout(function(){ boostReady = true; tapBtn.classList.remove("cool"); }, 2400);
+    setTimeout(function(){ boostReady = true; tapBtn.classList.remove("cool"); }, 1200);
   }
   tapBtn.addEventListener("click", boost);
   stadium.addEventListener("pointerdown", function(){ if (state==="battle") boost(); });
@@ -725,8 +731,8 @@
     setTimeout(function(){
       document.getElementById("resBig").textContent = iWin ? "🏆 かった！！" : "まけた…";
       document.getElementById("resSub").textContent =
-        burst ? (iWin ? "ボスに バースト勝ち！ ほんものだ！" : "バーストで まけた。あいてが つよかったね")
-              : (iWin ? "スピン勝ち！ つよい あいてに かてた！" : "とまって まけた。まけは まけだよ、もういちど！");
+        burst ? (iWin ? (cpuStrong ? "ボスに バースト勝ち！ ほんものだ！" : "バースト勝ち！ やったね！") : "バーストで まけた。つぎは かてるよ！")
+              : (iWin ? (cpuStrong ? "ボスに スピン勝ち！ すごい！" : "スピン勝ち！ かいてんが のこった！") : "とまって まけた。つぎは かてるよ！");
       resultEl.style.display = "flex";
       if (iWin){ SFX.win(); confetti(); } else { SFX.lose(); }
     }, burst ? 900 : 1100);
