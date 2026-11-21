@@ -510,8 +510,12 @@
     }
 
     P.forEach(function(p, idx){
-      /* 疲れ方は両者まったく同じ計算 */
-      var decay = dt * (2.6 / p.b.stamina) * (0.8 + 0.25 * p.b.move);
+      /* 疲れ方は両者まったく同じ計算。
+         自然減衰は全体に約1.5倍速く（2.6→3.9）し、持久のタイプ差は
+         実効持久を 1 に寄せて半分ほどに圧縮する：持久タイプでも
+         ゲージが目に見えて減っていくようにする。衝突ダメージは不変 */
+      var effStamina = 1 + (p.b.stamina - 1) * 0.5;
+      var decay = dt * (3.9 / effStamina) * (0.8 + 0.25 * p.b.move);
       p.spin -= decay;
       if (p.spin < 0) p.spin = 0;
       if (p.clashCd > 0) p.clashCd -= dt;
