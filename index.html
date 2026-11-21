@@ -420,8 +420,8 @@
 
     var r = stadium.clientWidth, size = r*0.162;
     P = [
-      { b:myBey,  el:makeBeyEl(myBey),  x:r*0.30, y:r*0.62, vx:0, vy:0, ang:0, spin:0, max:100*myBey.stamina,  me:true,  mode:"orbit", modeT:0.8, pace:1, paceT:1, clashCd:0, kickT:0, jitterT:0 },
-      { b:cpuBey, el:makeBeyEl(cpuBey), x:r*0.70, y:r*0.38, vx:0, vy:0, ang:0, spin:0, max:100*cpuBey.stamina, me:false, mode:"orbit", modeT:1.3, pace:1, paceT:1, clashCd:0, kickT:0, jitterT:0 }
+      { b:myBey,  el:makeBeyEl(myBey),  x:r*0.30, y:r*0.62, vx:0, vy:0, ang:0, spin:0, max:100*myBey.stamina,  me:true,  mode:"orbit", modeT:0.8, pace:1, paceT:1, clashCd:0, kickT:0, jitterT:0, spiralR:null },
+      { b:cpuBey, el:makeBeyEl(cpuBey), x:r*0.70, y:r*0.38, vx:0, vy:0, ang:0, spin:0, max:100*cpuBey.stamina, me:false, mode:"orbit", modeT:1.3, pace:1, paceT:1, clashCd:0, kickT:0, jitterT:0, spiralR:null }
     ];
     P.forEach(function(p){
       p.el.style.transform = "translate("+(p.x-size/2)+"px,"+(p.y-size/2)+"px)";
@@ -528,6 +528,23 @@
       var centerPull = 30 * (1.6 - 0.55 * p.b.move);
       p.vx += (-dy/d)*orbit*dt*2.2 - (dx/d)*speedRatio*dt*centerPull;
       p.vy += (dx/d)*orbit*dt*2.2 - (dy/d)*speedRatio*dt*centerPull;
+      /* アタック（底が平ら）だけ渦巻き軌道：目標半径が少しずつ縮んでいき、
+         接線方向の動きに中心方向の成分が常に混ざるので、外周に張り付いたままにならない。
+         防御・スタミナの周回は今まで通り */
+      if (p.b.tip === "flat"){
+        if (p.spiralR == null || p.spiralR > maxD) p.spiralR = maxD;
+        p.spiralR -= dt * r * 0.05 * (0.5 + 0.5 * speedRatio);
+        if (p.spiralR <= r * 0.07){
+          /* 中心近くまで来たら目標半径を外側に戻し、相手への突進（chase）につなげる */
+          p.spiralR = maxD;
+          if (foe && p.mode !== "chase"){ p.mode = "chase"; p.paceT = 1.3; p.modeT = 0.9; }
+        } else if (d > p.spiralR){
+          /* 目標半径より外にいる間は、中心方向へ引っ張り続ける */
+          var pull = Math.min((d - p.spiralR) * 3.0, r * 0.55);
+          p.vx += -(dx/d) * pull * dt;
+          p.vy += -(dy/d) * pull * dt;
+        }
+      }
       if (p.mode === "chase" && foe){
         /* 突進の速さは両方とも同じ */
         var fx = foe.x-p.x, fy = foe.y-p.y, fd = Math.hypot(fx,fy)||1;
@@ -608,6 +625,9 @@
           /* 弾かれた直後は二人とも一瞬ゆっくりに見せてから勢いよく離れる */
           a.clashCd = 0.18; b.clashCd = 0.18;
           a.kickT = 0.5; b.kickT = 0.5;
+          /* 弾かれたアタックは、また外側から渦巻きで戻ってくる */
+          if (a.b.tip === "flat") a.spiralR = maxD;
+          if (b.b.tip === "flat") b.spiralR = maxD;
           if (hard) slowmoT = 0.13;
           /* 弾かれた後は少し休んでからまた動き出す（間） */
           a.mode = "drift"; a.paceT = 0.5; a.modeT = 0.45 + Math.random()*0.3;
