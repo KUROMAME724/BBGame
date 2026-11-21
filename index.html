@@ -386,20 +386,20 @@
     cpuStrong = (battleCount % 3 === 0);
     var pool = BEYS.filter(function(b){ return b.id !== myBey.id; });
     var base = pool[Math.floor(Math.random()*pool.length)];
-    /* 相手は素より一回り強い。負けることも多いが、
-       うまく当ててブーストを使えば勝てるバランス */
+    /* 通常戦はほぼ対等：相手はほんの少しだけ強い程度。
+       ブーストをうまく使えば大人でも子供でも普通に勝てるバランス */
     cpuBey = Object.assign({}, base, {
-      power: base.power * 1.35,
-      stamina: base.stamina * 1.3,
-      move: Math.min(2.2, base.move * 1.15 + 0.15),
-      roam: 1.0
+      power: base.power * 1.02,
+      stamina: base.stamina * 1.0,
+      move: base.move,
+      roam: base.roam
     });
     if (cpuStrong){
-      /* 3回に1回はさらに格上のボス戦。それでも勝ち筋はある */
+      /* 3回に1回は格上のボス戦。強めだがブースト連打と当て方で勝てる */
       cpuBey = Object.assign({}, cpuBey, {
-        power: cpuBey.power * 1.3,
-        stamina: cpuBey.stamina * 1.25,
-        move: Math.min(2.4, cpuBey.move * 1.15)
+        power: cpuBey.power * 1.18,
+        stamina: cpuBey.stamina * 1.15,
+        move: Math.min(2.2, cpuBey.move * 1.05)
       });
     }
     startCountdown();
@@ -408,7 +408,7 @@
   function startCountdown(){
     state = "count";
     slowmoT = 0;
-    cpuBoostT = 0.7 + Math.random()*0.5;
+    cpuBoostT = 2.0 + Math.random()*1.0;
     shootBtn.style.display = "none";
     tapBtn.style.display = "none";
     resultEl.style.display = "none";
@@ -466,13 +466,12 @@
 
   /* ===== 物理ループ ===== */
   function pickMode(p){
-    /* CPUは自分より少し積極的に追いかけてくるが、常時ではない */
+    /* 追いかけ方は両方とも同じルール。CPUだけ常時突っ込んだりはしない */
     var roll = Math.random();
     var mv = p.b.move;
     var base = p.b.power >= 1.1 ? 0.48 : (p.b.power >= 0.9 ? 0.36 : 0.24);
-    if (!p.me) base += 0.3; /* CPUはやや突っ込み気味 */
-    var chaseW = p.me ? Math.min(0.66, Math.max(0.05, base * mv)) : 0.78;
-    var dur = (1.25 - 0.32 * mv) * (p.me ? 1 : 0.8); /* CPUは切り替えも少し速い */
+    var chaseW = Math.min(0.66, Math.max(0.05, base * mv));
+    var dur = (1.25 - 0.32 * mv);
     if (roll < chaseW){ p.mode = "chase"; p.paceT = 0.9 + 0.5*mv;  p.modeT = (0.7 + Math.random()*0.7) * dur; }
     else if (roll < chaseW + 0.38){ p.mode = "orbit"; p.paceT = 0.55 + 0.45*mv; p.modeT = (0.9 + Math.random()*1.1) * dur; }
     else { p.mode = "drift"; p.paceT = 0.25 + 0.25*mv; p.modeT = (0.8 + Math.random()*0.9) * dur; }
@@ -487,24 +486,25 @@
     var r = stadium.clientWidth, size = r*0.162, rad = size/2;
     var cx = r/2, cy = r/2, maxD = r/2 - rad - r*0.035;
 
-    /* 相手も時々パワーアップして突っ込んでくるが、間隔は広め・回復は控えめ */
+    /* 相手もたまに突っ込んでくるが、回復は小さく間隔も広め。
+       きみのブーストの方がずっと強いのが勝ち筋 */
     if (P.length===2){
       cpuBoostT -= dt;
       if (cpuBoostT <= 0){
         var cpu = P[1], you = P[0];
-        cpu.spin = Math.min(cpu.max, cpu.spin + (cpuStrong ? 12 : 8));
+        cpu.spin = Math.min(cpu.max, cpu.spin + (cpuStrong ? 6 : 4));
         var cdx = you.x-cpu.x, cdy = you.y-cpu.y, cd = Math.hypot(cdx,cdy)||1;
-        cpu.vx += cdx/cd * r * 0.55; cpu.vy += cdy/cd * r * 0.55;
-        cpu.kickT = 0.7; cpu.mode = "chase"; cpu.paceT = 1.7; cpu.modeT = 1.0;
-        sparks(cpu.x, cpu.y, 9);
-        cpuBoostT = cpuStrong ? (1.6 + Math.random()*0.8) : (2.2 + Math.random()*1.0);
+        cpu.vx += cdx/cd * r * 0.32; cpu.vy += cdy/cd * r * 0.32;
+        cpu.kickT = 0.4; cpu.mode = "chase"; cpu.paceT = 1.3; cpu.modeT = 0.7;
+        sparks(cpu.x, cpu.y, 6);
+        cpuBoostT = cpuStrong ? (2.6 + Math.random()*1.0) : (3.4 + Math.random()*1.2);
       }
     }
 
     P.forEach(function(p, idx){
-      /* 相手は少しだけ疲れにくい程度。きみの減り方は通常通り */
+      /* 疲れ方は対等。むしろ きみ の方がほんの少しだけ長持ちする */
       var decay = dt * (2.6 / p.b.stamina) * (0.8 + 0.25 * p.b.move);
-      if (!p.me) decay *= 0.75;
+      if (p.me) decay *= 0.88;
       p.spin -= decay;
       if (p.spin < 0) p.spin = 0;
       if (p.clashCd > 0) p.clashCd -= dt;
@@ -530,9 +530,9 @@
       p.vx += (-dy/d)*orbit*dt*2.2 - (dx/d)*speedRatio*dt*centerPull;
       p.vy += (dx/d)*orbit*dt*2.2 - (dy/d)*speedRatio*dt*centerPull;
       if (p.mode === "chase" && foe){
-        /* CPUの突進は自分より速いが、逃げ切れる場面もある */
+        /* 突進の速さは両方とも同じ */
         var fx = foe.x-p.x, fy = foe.y-p.y, fd = Math.hypot(fx,fy)||1;
-        var chase = r * 1.5 * speedRatio * (0.5 + 0.5 * p.b.move) * (p.me ? 1.0 : 1.45);
+        var chase = r * 1.5 * speedRatio * (0.5 + 0.5 * p.b.move);
         p.vx += (fx/fd)*chase*dt; p.vy += (fy/fd)*chase*dt;
       } else if (p.mode === "drift"){
         /* 流れるときは軽くブレーキをかけてゆっくりに */
@@ -564,10 +564,10 @@
         p.x = cx + nx*maxD; p.y = cy + ny*maxD;
         var dot = p.vx*nx + p.vy*ny;
         if (dot > 0){
-          /* 壁にもバチンと弾かれる。強く叩きつけられた きみ は回転も少し削れる */
+          /* 壁にもバチンと弾かれる。削れ方は両方とも同じ */
           p.vx -= 1.9*dot*nx; p.vy -= 1.9*dot*ny;
           p.vx *= 0.94; p.vy *= 0.94;
-          if (dot > r*0.4){ sparks(p.x, p.y, 6); SFX.clash(false); if (p.me) p.spin -= 2; }
+          if (dot > r*0.4){ sparks(p.x, p.y, 6); SFX.clash(false); p.spin -= 1.2; }
         }
       }
       p.ang += dt * (p.me?1:-1) * p.spin * 0.55;
@@ -596,16 +596,16 @@
           var impulse = (1 + rest) * approach / 2;
           a.vx -= impulse*nx; a.vy -= impulse*ny;
           b.vx += impulse*nx; b.vy += impulse*ny;
-          /* ノックバック：きみの方が少し大きく弾かれるが、相手もちゃんと飛ぶ */
+          /* ノックバック：両方とも同じだけ弾かれる */
           var avgSpin = (a.spin/a.max + b.spin/b.max) / 2;
           var kick = r * (0.16 + 0.30*avgSpin) + approach * 0.28;
-          a.vx -= nx*kick*1.25; a.vy -= ny*kick*1.25;
-          b.vx += nx*kick*0.8; b.vy += ny*kick*0.8;
+          a.vx -= nx*kick; a.vy -= ny*kick;
+          b.vx += nx*kick; b.vy += ny*kick;
           /* 横方向のキック：当たったあとカーブして離れる、本物のベイらしい動き */
           var tx = -ny, ty = nx;
           var swerve = (Math.random()*0.7 + 0.5) * r * 0.22 * (Math.random() < 0.5 ? 1 : -1);
           a.vx += tx*swerve; a.vy += ty*swerve;
-          b.vx -= tx*swerve*0.7; b.vy -= ty*swerve*0.7;
+          b.vx -= tx*swerve; b.vy -= ty*swerve;
           /* 弾かれた直後は二人とも一瞬ゆっくりに見せてから勢いよく離れる */
           a.clashCd = 0.18; b.clashCd = 0.18;
           a.kickT = 0.5; b.kickT = 0.5;
@@ -613,21 +613,22 @@
           /* 弾かれた後は少し休んでからまた動き出す（間） */
           a.mode = "drift"; a.paceT = 0.5; a.modeT = 0.45 + Math.random()*0.3;
           b.mode = "drift"; b.paceT = 0.5; b.modeT = 0.45 + Math.random()*0.3;
-          /* ダメージ：相手の方が少し削りが大きい程度で、こちらも与えられる */
+          /* ダメージ：計算は対等で、きみ の一撃が少しだけ重い */
           var dmgA = (3.5 + Math.random()*4.5) * b.b.power * (hard?1.5:1.1);
-          var dmgB = (3.5 + Math.random()*4.5) * a.b.power * (hard?1.7:1) * 0.8;
+          var dmgB = (3.5 + Math.random()*4.5) * a.b.power * (hard?1.5:1.1) * 1.2;
           a.spin -= dmgA; b.spin -= dmgB;
           sparks((a.x+b.x)/2, (a.y+b.y)/2, hard?14:8);
           ringFx((a.x+b.x)/2, (a.y+b.y)/2);
           SFX.clash(hard);
           if (navigator.vibrate) navigator.vibrate(hard?60:25);
-          /* バースト：どちらも回転が減ってきた時だけ起きる。相手にも十分起きる */
+          /* バースト：どちらも回転が減ってきた時だけ。相手の方が起きやすい */
           if (hard){
-            if (a.spin < a.max*0.30 && Math.random()<0.45) return finish(a, true);
-            if (b.spin < b.max*0.18 && Math.random()<0.30) return finish(b, true);
+            if (a.spin < a.max*0.18 && Math.random()<0.25) return finish(a, true);
+            if (b.spin < b.max*0.28 && Math.random()<0.45) return finish(b, true);
           } else {
-            /* 通常ヒットでも、残りわずかなら たまにバーストする */
-            if (a.spin < a.max*0.12 && Math.random()<0.15) return finish(a, true);
+            /* 通常ヒットでも、残りわずかなら両方とも たまにバーストする */
+            if (a.spin < a.max*0.10 && Math.random()<0.10) return finish(a, true);
+            if (b.spin < b.max*0.14 && Math.random()<0.18) return finish(b, true);
           }
         } else if (approach > 0){
           /* クールダウン中はすり抜けず、軽く押し合いだけ続ける */
@@ -668,19 +669,19 @@
   }
 
   /* ===== ブースト ===== */
-  /* ブースト：回転がしっかり戻り、相手へ突っ込める。勝ち筋になる強さ */
+  /* ブースト：回転が大きく戻り、相手へ強く突っ込める。タップが勝ち筋になる強さ */
   function boost(){
     if (state !== "battle" || !boostReady) return;
     var me = P[0], foe = P[1]; if(!me || !foe) return;
-    me.spin = Math.min(me.max, me.spin + 7);
+    me.spin = Math.min(me.max, me.spin + 14);
     var dx = foe.x-me.x, dy = foe.y-me.y, d = Math.hypot(dx,dy)||1;
     var r = stadium.clientWidth;
-    me.vx += dx/d*r*0.3; me.vy += dy/d*r*0.3;
-    me.kickT = 0.22; me.mode = "chase"; me.paceT = 1.15; me.modeT = 0.4;
+    me.vx += dx/d*r*0.55; me.vy += dy/d*r*0.55;
+    me.kickT = 0.35; me.mode = "chase"; me.paceT = 1.5; me.modeT = 0.6;
     SFX.boost();
-    sparks(me.x, me.y, 4);
+    sparks(me.x, me.y, 7);
     boostReady = false; tapBtn.classList.add("cool");
-    setTimeout(function(){ boostReady = true; tapBtn.classList.remove("cool"); }, 1200);
+    setTimeout(function(){ boostReady = true; tapBtn.classList.remove("cool"); }, 900);
   }
   tapBtn.addEventListener("click", boost);
   stadium.addEventListener("pointerdown", function(){ if (state==="battle") boost(); });
