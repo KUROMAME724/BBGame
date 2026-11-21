@@ -131,6 +131,9 @@
   #gutsBtn.dud{animation:gdud .3s ease;}
   @keyframes gdud{0%,100%{transform:translateX(0);}25%{transform:translateX(-6px);}75%{transform:translateX(6px);}}
   .bey.guts svg{filter:drop-shadow(0 0 18px rgba(74,222,128,.95)) drop-shadow(0 8px 10px rgba(0,0,0,.45));}
+  /* ねばり中は自分のゲージも緑に光って、効いているのがひと目で分かる */
+  #gYou.gutsOn .bar{border-color:#4ade80; box-shadow:0 0 16px rgba(74,222,128,.9), 0 2px 8px rgba(0,0,0,.15); animation:gpulse .5s ease-in-out infinite alternate;}
+  @keyframes gpulse{from{box-shadow:0 0 8px rgba(74,222,128,.6), 0 2px 8px rgba(0,0,0,.15);}to{box-shadow:0 0 22px rgba(74,222,128,1), 0 2px 8px rgba(0,0,0,.15);}}
   #againBtn2{background:linear-gradient(180deg,#fbbf24,#f97316);}
   .hintline{text-align:center; font-size:clamp(14px,3.6vw,18px); font-weight:800; color:var(--sub); min-height:1.4em;}
 
@@ -351,8 +354,11 @@
   var slowmoT = 0; // 強い衝突直後のスロー（緩急用）
   var battleT = 0; // バトル経過時間（アタックの周回半径の縮小に使う）
   /* ねばりバフ（プレイヤー専用）：押した時点の残りゲージが少ないほど強く、
-     一定時間だけ自分の自然減衰を遅くする。回復はしない。
-     gutsLevel 0〜1（減衰カット率 = level × 0.7 で最大70%カット）、gutsT は残り時間 */
+     一定時間だけ自分のゲージの減りを遅くする。回復はしない。
+     効くのは「自然減衰」と「ぶつかったときに受けるダメージ」の両方
+     （以前は自然減衰だけだったので、衝突が主因のバトルでは体感できなかった）。
+     gutsLevel 0〜1（減衰カット率 = level × 0.9、被ダメージ軽減 = level × 0.6）、
+     gutsT は残り時間 */
   var gutsLevel = 0, gutsT = 0;
   var gutsBtn = document.getElementById("gutsBtn");
 
@@ -428,16 +434,18 @@
 
   /* ===== ねばりボタン（プレイヤーだけ） =====
      押すたびに、その時点の残りゲージ割合で強さが決まるバフが付く：
-       残り80%以上 … ほぼ効果なし（strength 0）
-       残り20%以下 … 最大（strength 1）
-     連続押しで level が重なるが上限1（減衰カット最大70%）で頭打ち。
-     持続は約3.5秒で、押すたびに残り時間が戻る。ゲージ自体は回復しない */
+       残り85%以上 … ほぼ効果なし（strength 0）
+       残り30%以下 … 最大（strength 1）
+     連続押しで level が重なるが上限1で頭打ち（減衰カット最大90%、
+     被ダメージ軽減最大60%）。持続は約4.5秒で、押すたびに残り時間が戻る。
+     ゲージ自体は回復しない */
+  var gYouEl = document.getElementById("gYou");
   gutsBtn.addEventListener("click", function(){
     if (state !== "battle" || !P.length) return;
     audio();
     var me = P[0];
     var ratio = me.spin / me.max;
-    var strength = Math.max(0, Math.min(1, (0.8 - ratio) / 0.6));
+    var strength = Math.max(0, Math.min(1, (0.85 - ratio) / 0.55));
     gutsBtn.classList.remove("pop","dud"); void gutsBtn.offsetWidth;
     if (strength < 0.05){
       /* ゲージがまだ多いときは ほぼ効かない：小さな反応だけ返す */
@@ -446,13 +454,22 @@
       return;
     }
     gutsLevel = Math.min(1, gutsLevel + strength);
-    gutsT = 3.5;
+    gutsT = 4.5;
     SFX.guts();
     if (navigator.vibrate) navigator.vibrate(20);
     gutsBtn.classList.add("pop","on");
+    gutsBtn.textContent = "💪 ねばってる！";
+    gYouEl.classList.add("gutsOn");
     me.el.classList.add("guts");
     sparks(me.x, me.y, 6);
   });
+  /* ねばりが切れたときの見た目を全部戻す */
+  function gutsOff(){
+    gutsBtn.classList.remove("on");
+    gutsBtn.textContent = "💪 ねばる！";
+    gYouEl.classList.remove("gutsOn");
+    if (P.length) P[0].el.classList.remove("guts");
+  }
 
   function startCountdown(){
     state = "count";
@@ -460,7 +477,7 @@
     battleT = 0;
     gutsLevel = 0; gutsT = 0;
     gutsBtn.style.display = "none";
-    gutsBtn.classList.remove("on");
+    gutsOff();
     shootBtn.style.display = "none";
     resultEl.style.display = "none";
     document.getElementById("pick").style.display = "none";
@@ -552,22 +569,25 @@
       gutsT -= rawDt;
       if (gutsT <= 0){
         gutsT = 0; gutsLevel = 0;
-        gutsBtn.classList.remove("on");
-        if (P.length) P[0].el.classList.remove("guts");
+        gutsOff();
       }
     }
     var r = stadium.clientWidth, size = r*0.162, rad = size/2;
     var cx = r/2, cy = r/2, maxD = r/2 - rad - r*0.035;
 
     P.forEach(function(p){
-      /* ゲージの自然な減り：タイプ特性 decay のまま（両者同じ計算）。
+      /* ゲージの自然な減り：タイプ特性 decay が基本（両者同じ計算）。
          アタックは速く（約20秒で満タン→0）、防御は普通（約38秒）、
          スタミナは遅い（約55秒）。CPUの上限は倍率ぶんだけ変わる
          （通常戦は1.15倍ぶん少し大きく、ボス戦はさらに大きい） */
-      /* ねばりバフ中はプレイヤーの自然減衰だけが遅くなる（最大70%カット）。
-         衝突ダメージには効かない。CPUにはバフなし */
-      var dec = dt * p.b.decay;
-      if (p.me && gutsT > 0) dec *= (1 - 0.7 * gutsLevel);
+      /* 根性補正（両ベイ共通の基本仕様）：残りゲージが少ないほど
+         自然減衰が遅くなる。倍率 = 0.35 + 0.65×残り割合 で、満タン時は
+         従来通り（×1.0）、残りわずかでは減衰が約1/3（×0.35）まで落ちる。
+         タイプ間の減衰比率はそのまま維持される */
+      /* ねばりバフ中はプレイヤーの自然減衰がさらに最大90%カットされる。
+         衝突ダメージの軽減は衝突処理側で適用。CPUにはバフなし */
+      var dec = dt * p.b.decay * (0.35 + 0.65 * (p.spin / p.max));
+      if (p.me && gutsT > 0) dec *= (1 - 0.9 * gutsLevel);
       p.spin -= dec;
       if (p.spin < 0) p.spin = 0;
       if (p.clashCd > 0) p.clashCd -= dt;
@@ -616,7 +636,8 @@
       }
       p.ang += dt * (p.me?1:-1) * p.spin * 0.80;
       p.el.style.transform = "translate("+(p.x-rad)+"px,"+(p.y-rad)+"px) rotate("+p.ang+"deg)";
-      p.el.classList.toggle("wobble", speedRatio < 0.3 && p.spin > 0);
+      /* ねばり中はフラフラ（wobble）も止まる＝粘って回り続けているのが見える */
+      p.el.classList.toggle("wobble", speedRatio < 0.3 && p.spin > 0 && !(p.me && gutsT > 0));
     });
 
     /* 衝突：本物みたいに両方が反対方向へ弾かれる */
@@ -663,6 +684,12 @@
           var multB = a.me ? 1 : a.b.cpuMult; /* a→b への倍率 */
           var dmgA = (3.5 + Math.random()*4.5) * b.b.atk * (hard?1.5:1.1) * a.b.guard * multA;
           var dmgB = (3.5 + Math.random()*4.5) * a.b.atk * (hard?1.5:1.1) * b.b.guard * multB;
+          /* ねばり中はプレイヤーの受けるダメージも最大60%軽減される。
+             ゲージ減少の主因は衝突なので、ここに効かせないと体感できない */
+          if (gutsT > 0){
+            if (a.me) dmgA *= (1 - 0.6 * gutsLevel);
+            if (b.me) dmgB *= (1 - 0.6 * gutsLevel);
+          }
           a.spin -= dmgA; b.spin -= dmgB;
           sparks((a.x+b.x)/2, (a.y+b.y)/2, hard?14:8);
           ringFx((a.x+b.x)/2, (a.y+b.y)/2);
@@ -733,8 +760,8 @@
   function finish(loser, burst){
     state = "end";
     gutsBtn.style.display = "none";
-    gutsBtn.classList.remove("on");
     gutsLevel = 0; gutsT = 0;
+    gutsOff();
     if (raf) cancelAnimationFrame(raf);
     var winner = (loser === P[0]) ? P[1] : P[0];
     var iWin = winner.me;
@@ -798,7 +825,7 @@
     slowmoT = 0;
     gutsLevel = 0; gutsT = 0;
     gutsBtn.style.display = "none";
-    gutsBtn.classList.remove("on");
+    gutsOff();
     if (raf) cancelAnimationFrame(raf);
     resultEl.style.display = "none";
     gauges.style.display = "none";
