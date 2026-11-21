@@ -122,6 +122,15 @@
   .bigbtn:active{transform:translateY(5px); box-shadow:0 3px 0 rgba(0,0,0,.22);}
   #shootBtn{background:linear-gradient(180deg,#ff7a59,#f43f3f);}
   #shootBtn:disabled{filter:grayscale(.6) brightness(.8);}
+  /* ねばりボタン：バトル中だけ出る。押すと自分のゲージの減りが一時的に遅くなる */
+  #gutsBtn{background:linear-gradient(180deg,#4ade80,#16a34a); display:none;}
+  #gutsBtn.on{box-shadow:0 8px 0 rgba(0,0,0,.22), 0 0 26px rgba(74,222,128,.95), 0 14px 28px rgba(0,0,0,.2);}
+  #gutsBtn:active{transform:translateY(5px) scale(.97);}
+  #gutsBtn.pop{animation:gpop .3s ease;}
+  @keyframes gpop{0%{transform:scale(1.1);}100%{transform:scale(1);}}
+  #gutsBtn.dud{animation:gdud .3s ease;}
+  @keyframes gdud{0%,100%{transform:translateX(0);}25%{transform:translateX(-6px);}75%{transform:translateX(6px);}}
+  .bey.guts svg{filter:drop-shadow(0 0 18px rgba(74,222,128,.95)) drop-shadow(0 8px 10px rgba(0,0,0,.45));}
   #againBtn2{background:linear-gradient(180deg,#fbbf24,#f97316);}
   .hintline{text-align:center; font-size:clamp(14px,3.6vw,18px); font-weight:800; color:var(--sub); min-height:1.4em;}
 
@@ -184,6 +193,7 @@
   <div id="controls">
     <div class="hintline" id="hint">ベイを えらぶと シュートできるよ</div>
     <button class="bigbtn" id="shootBtn" disabled>🚀 シュート！</button>
+    <button class="bigbtn" id="gutsBtn" type="button">💪 ねばる！</button>
   </div>
 </div>
 
@@ -320,6 +330,8 @@
     clash:  function(hard){ noise(.12,.4, hard?3400:2400); tone(hard?1560:1180,.1,"square",.14,300); },
     burst:  function(){ noise(.55,.5,700); tone(220,.5,"sawtooth",.22,40); tone(1200,.2,"square",.15,200,.03); },
     spinout:function(){ tone(700,.7,"sine",.18,90); },
+    guts:   function(){ tone(392,.14,"triangle",.22); tone(523,.16,"triangle",.22,null,.07); tone(659,.2,"triangle",.2,null,.14); },
+    dud:    function(){ tone(196,.15,"square",.12,150); },
     win:    function(){ [523,659,784,1046].forEach(function(f,i){ tone(f,.28,"triangle",.24,null,i*.13); }); noise(.4,.08,4000,.5); },
     lose:   function(){ [392,330,262].forEach(function(f,i){ tone(f,.3,"triangle",.2,null,i*.16); }); }
   };
@@ -338,6 +350,11 @@
   var raf = null, lastT = 0;
   var slowmoT = 0; // 強い衝突直後のスロー（緩急用）
   var battleT = 0; // バトル経過時間（アタックの周回半径の縮小に使う）
+  /* ねばりバフ（プレイヤー専用）：押した時点の残りゲージが少ないほど強く、
+     一定時間だけ自分の自然減衰を遅くする。回復はしない。
+     gutsLevel 0〜1（減衰カット率 = level × 0.7 で最大70%カット）、gutsT は残り時間 */
+  var gutsLevel = 0, gutsT = 0;
+  var gutsBtn = document.getElementById("gutsBtn");
 
   /* スタジアムを空きスペースにぴったり合わせる */
   var stageWrap = document.getElementById("stageWrap");
@@ -409,10 +426,41 @@
     startCountdown();
   });
 
+  /* ===== ねばりボタン（プレイヤーだけ） =====
+     押すたびに、その時点の残りゲージ割合で強さが決まるバフが付く：
+       残り80%以上 … ほぼ効果なし（strength 0）
+       残り20%以下 … 最大（strength 1）
+     連続押しで level が重なるが上限1（減衰カット最大70%）で頭打ち。
+     持続は約3.5秒で、押すたびに残り時間が戻る。ゲージ自体は回復しない */
+  gutsBtn.addEventListener("click", function(){
+    if (state !== "battle" || !P.length) return;
+    audio();
+    var me = P[0];
+    var ratio = me.spin / me.max;
+    var strength = Math.max(0, Math.min(1, (0.8 - ratio) / 0.6));
+    gutsBtn.classList.remove("pop","dud"); void gutsBtn.offsetWidth;
+    if (strength < 0.05){
+      /* ゲージがまだ多いときは ほぼ効かない：小さな反応だけ返す */
+      SFX.dud();
+      gutsBtn.classList.add("dud");
+      return;
+    }
+    gutsLevel = Math.min(1, gutsLevel + strength);
+    gutsT = 3.5;
+    SFX.guts();
+    if (navigator.vibrate) navigator.vibrate(20);
+    gutsBtn.classList.add("pop","on");
+    me.el.classList.add("guts");
+    sparks(me.x, me.y, 6);
+  });
+
   function startCountdown(){
     state = "count";
     slowmoT = 0;
     battleT = 0;
+    gutsLevel = 0; gutsT = 0;
+    gutsBtn.style.display = "none";
+    gutsBtn.classList.remove("on");
     shootBtn.style.display = "none";
     resultEl.style.display = "none";
     document.getElementById("pick").style.display = "none";
@@ -453,6 +501,7 @@
 
   function launch(){
     state = "battle";
+    gutsBtn.style.display = "block";
     var r = stadium.clientWidth;
     P.forEach(function(p){
       p.spin = p.max;
@@ -465,7 +514,7 @@
       var sp = r * 0.80;
       p.vx = -Math.sin(a)*sp*p.dir; p.vy = Math.cos(a)*sp*p.dir;
     });
-    hintEl.textContent = cpuStrong ? "👑 ボスだ！ たたかいを みててね！" : "たたかいを みててね！";
+    hintEl.textContent = cpuStrong ? "👑 ボスだ！ ゲージが へったら 💪ねばる！" : "ゲージが へったら 💪ねばる！ を おしてね";
     lastT = performance.now();
     raf = requestAnimationFrame(tick);
   }
@@ -498,6 +547,15 @@
     var dt = rawDt;
     if (slowmoT > 0){ slowmoT -= rawDt; dt = rawDt * 0.32; }
     battleT += rawDt;
+    /* ねばりバフの残り時間（実時間で切れる。切れたら光も消える） */
+    if (gutsT > 0){
+      gutsT -= rawDt;
+      if (gutsT <= 0){
+        gutsT = 0; gutsLevel = 0;
+        gutsBtn.classList.remove("on");
+        if (P.length) P[0].el.classList.remove("guts");
+      }
+    }
     var r = stadium.clientWidth, size = r*0.162, rad = size/2;
     var cx = r/2, cy = r/2, maxD = r/2 - rad - r*0.035;
 
@@ -506,7 +564,11 @@
          アタックは速く（約20秒で満タン→0）、防御は普通（約38秒）、
          スタミナは遅い（約55秒）。CPUの上限は倍率ぶんだけ変わる
          （通常戦は1.15倍ぶん少し大きく、ボス戦はさらに大きい） */
-      p.spin -= dt * p.b.decay;
+      /* ねばりバフ中はプレイヤーの自然減衰だけが遅くなる（最大70%カット）。
+         衝突ダメージには効かない。CPUにはバフなし */
+      var dec = dt * p.b.decay;
+      if (p.me && gutsT > 0) dec *= (1 - 0.7 * gutsLevel);
+      p.spin -= dec;
       if (p.spin < 0) p.spin = 0;
       if (p.clashCd > 0) p.clashCd -= dt;
       if (p.kickT > 0) p.kickT -= dt;
@@ -670,6 +732,9 @@
   /* ===== 終了 ===== */
   function finish(loser, burst){
     state = "end";
+    gutsBtn.style.display = "none";
+    gutsBtn.classList.remove("on");
+    gutsLevel = 0; gutsT = 0;
     if (raf) cancelAnimationFrame(raf);
     var winner = (loser === P[0]) ? P[1] : P[0];
     var iWin = winner.me;
@@ -731,6 +796,9 @@
   function reset(){
     state = "pick";
     slowmoT = 0;
+    gutsLevel = 0; gutsT = 0;
+    gutsBtn.style.display = "none";
+    gutsBtn.classList.remove("on");
     if (raf) cancelAnimationFrame(raf);
     resultEl.style.display = "none";
     gauges.style.display = "none";
