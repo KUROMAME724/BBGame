@@ -83,15 +83,38 @@
   .bey .piece{position:absolute; inset:0; transition:transform .7s cubic-bezier(.2,.8,.3,1), opacity .7s;}
   .spark{
     position:absolute; width:14px; height:14px; margin:-7px 0 0 -7px; border-radius:50%;
-    background:radial-gradient(circle,#fff8d6 0 25%, #ffd23f 45%, rgba(255,140,0,0) 72%);
+    background:radial-gradient(circle,#ffffff 0 22%, #fff3b0 34%, #ffd23f 52%, rgba(255,140,0,0) 74%);
+    box-shadow:0 0 0 1.5px rgba(70,35,0,.55), 0 0 7px rgba(255,180,0,.85);
     pointer-events:none; z-index:5;
   }
+  .spark.big{width:20px; height:20px; margin:-10px 0 0 -10px;}
+  /* ヒットマーク：明るい芯＋暗い縁で、明暗どちらの背景でも見える衝撃波。
+     ベイを隠しすぎないよう小さめ・短めに消す（通常0.3秒／強ヒット0.42秒） */
   .ringFx{
-    position:absolute; border:4px solid rgba(255,220,90,.85); border-radius:50%;
+    position:absolute; border:3px solid #fff6c9; border-radius:50%;
+    box-shadow:0 0 0 2px rgba(30,20,60,.55), inset 0 0 0 2px rgba(255,160,0,.55), 0 0 12px rgba(255,200,40,.7);
     pointer-events:none; z-index:4; transform:translate(-50%,-50%);
-    animation:ringOut .45s ease-out forwards;
+    animation:ringOut .3s ease-out forwards;
   }
-  @keyframes ringOut{from{width:20px;height:20px;opacity:1;}to{width:150px;height:150px;opacity:0;}}
+  .ringFx.hard{border-width:5px; animation-duration:.42s;}
+  @keyframes ringOut{from{width:16px;height:16px;opacity:1;}to{width:96px;height:96px;opacity:0;}}
+  .ringFx.hard{animation-name:ringOutHard;}
+  @keyframes ringOutHard{from{width:20px;height:20px;opacity:1;}to{width:148px;height:148px;opacity:0;}}
+  /* 当たった瞬間の白い芯：一瞬だけ光ってすぐ消える */
+  .hitCore{
+    position:absolute; width:30px; height:30px; margin:-15px 0 0 -15px; border-radius:50%;
+    background:radial-gradient(circle,#ffffff 0 38%, rgba(255,230,140,.85) 58%, rgba(255,180,0,0) 76%);
+    box-shadow:0 0 0 2px rgba(70,35,0,.35), 0 0 18px rgba(255,210,60,.95);
+    pointer-events:none; z-index:6;
+    animation:coreOut .16s ease-out forwards;
+  }
+  .hitCore.hard{width:44px; height:44px; margin:-22px 0 0 -22px; animation-duration:.22s;}
+  @keyframes coreOut{from{transform:scale(.55); opacity:1;}to{transform:scale(1.5); opacity:0;}}
+  /* バースト時のフラッシュ：画面全体が一瞬白く光る */
+  #flash{
+    position:absolute; inset:0; background:#fffbe8; opacity:0;
+    pointer-events:none; z-index:7;
+  }
   #count{
     position:absolute; inset:0; display:none; align-items:center; justify-content:center;
     font-size:clamp(80px,22vw,170px); font-weight:900; color:#fff; z-index:8;
@@ -184,6 +207,7 @@
 
   <div id="stageWrap">
     <div id="stadium">
+      <div id="flash"></div>
       <div id="count"></div>
     </div>
   </div>
@@ -219,15 +243,15 @@
        guard = ぶつかったときに自分のゲージが削られる量（被ダメージ倍率。
                小さいほど硬い＝削りガードが強い）
      動きは底の形（tip）で決まる：
-       flat（アタック）  = 大きくグルグル周回し、時間とともに半径が縮む
+       flat（アタック）  = 大きくグルグル周回し、2周したら半径が縮んで中心へ寄る
        round（スタミナ） = 基本は真ん中、小さな円だけ
        sharp（防御）     = その中間、中くらいの半径で穏やかに周回 */
   var BEYS = [
-    { id:"red",   name:"ほのおドラゴン", type:"🔥 アタック",     tip:"flat",  tipLabel:"そこ：たいら",   main:"#ef4444", dark:"#991b1b", light:"#fca5a5", blades:3, atk:1.4, decay:5.0, guard:1.0 },
+    { id:"red",   name:"ほのおドラゴン", type:"🔥 アタック",     tip:"flat",  tipLabel:"そこ：たいら",   main:"#ef4444", dark:"#991b1b", light:"#fca5a5", blades:3, atk:1.3, decay:5.0, guard:1.0 },
     { id:"blue",  name:"うみウェーブ",   type:"💧 スタミナ",     tip:"round", tipLabel:"そこ：まるい",   main:"#3b82f6", dark:"#1e3a8a", light:"#93c5fd", blades:4, atk:0.7, decay:1.8, guard:1.3 },
-    { id:"green", name:"もりタートル",   type:"🌿 ディフェンス", tip:"sharp", tipLabel:"そこ：とがった", main:"#22c55e", dark:"#14532d", light:"#86efac", blades:6, atk:0.7, decay:2.6, guard:0.6 }
+    { id:"green", name:"もりタートル",   type:"🌿 ディフェンス", tip:"sharp", tipLabel:"そこ：とがった", main:"#22c55e", dark:"#14532d", light:"#86efac", blades:6, atk:0.9, decay:2.6, guard:0.6 }
   ];
-  /* ゲージ満タン量（プレイヤー側）。CPU側は基礎倍率ぶんだけ変わる（通常戦は1.15倍、ボス戦は合計で約1.35倍） */
+  /* ゲージ満タン量（プレイヤー側）。CPU側は基礎倍率ぶんだけ変わる（通常戦は1.25倍、ボス戦は合計で約1.48倍） */
 
   /* 底の形の横から見た図（選択カード用） */
   function tipSVG(b){
@@ -330,7 +354,18 @@
     count:  function(){ tone(440,.14,"square",.16); },
     go:     function(){ tone(880,.4,"square",.2,1320); noise(.25,.12,3000); },
     shoot:  function(){ noise(.5,.28,900); tone(180,.5,"sawtooth",.1,720); },
-    clash:  function(hard){ noise(.12,.4, hard?3400:2400); tone(hard?1560:1180,.1,"square",.14,300); },
+    clash:  function(hard){
+      /* アタック（立ち上がり）を強く：短いノイズを鋭く先に鳴らす。
+         強い一撃ほど低く重く（低い帯域のノイズ＋重い胴鳴りを足す） */
+      if (hard){
+        noise(.07,.55,2400); noise(.16,.3,700);
+        tone(880,.07,"square",.16,240);
+        tone(196,.2,"triangle",.32,62);
+      } else {
+        noise(.06,.45,3200);
+        tone(1320,.06,"square",.14,420);
+      }
+    },
     burst:  function(){ noise(.55,.5,700); tone(220,.5,"sawtooth",.22,40); tone(1200,.2,"square",.15,200,.03); },
     spinout:function(){ tone(700,.7,"sine",.18,90); },
     guts:   function(){ tone(392,.14,"triangle",.22); tone(523,.16,"triangle",.22,null,.07); tone(659,.2,"triangle",.2,null,.14); },
@@ -351,8 +386,20 @@
   var state = "pick"; // pick | count | battle | end
   var P = []; // 物理オブジェクト
   var raf = null, lastT = 0;
-  var slowmoT = 0; // 強い衝突直後のスロー（緩急用）
   var battleT = 0; // バトル経過時間（アタックの周回半径の縮小に使う）
+  /* ===== 手応え演出（数値バランスには一切触れない） =====
+     ヒットストップ：衝突の強さに応じて両ベイの物理を一瞬止める
+     （通常ヒット約50ms／強い一撃約110ms／バースト約200ms）。
+     止まっている間も火花・リング・フラッシュは実時間で動き続ける
+     （WAAPI / CSSアニメーションなので物理dtとは独立）。
+     以前のスローモーション（slowmo）はヒットストップと役割が重なるため廃止し、
+     強ヒットは「止まる→弾ける」のメリハリに一本化した */
+  var hitstopT = 0;              // ヒットストップ残り時間（秒、実時間で減る）
+  var hitShakeA = 0, hitShakeB = 0; // 見た目だけの震え量(px)：受けた側が大きく、与えた側は小さい
+  var hitShakeDur = 0;           // 震えの持続（＝ヒットストップ時間）
+  /* 画面振動：強い一撃のときだけ。最初が最大で収束する短い揺れ */
+  var shakeT = 0, shakeDur = 0, shakeAmp = 0;
+  var flashEl = document.getElementById("flash");
   /* ねばりバフ（プレイヤー専用）：押した時点の残りゲージが少ないほど強く、
      一定時間だけ自分のゲージの減りを遅くする。回復はしない。
      効くのは「自然減衰」と「ぶつかったときに受けるダメージ」の両方
@@ -408,7 +455,7 @@
     previewEl.style.transform = "translate("+(r*0.419)+"px,"+(r*0.419)+"px) rotate(20deg)";
   }
   function clearStage(){
-    var els = stadium.querySelectorAll(".bey,.spark,.ringFx");
+    var els = stadium.querySelectorAll(".bey,.spark,.ringFx,.hitCore");
     for (var i=0;i<els.length;i++) els[i].remove();
     P = []; previewEl = null;
   }
@@ -421,12 +468,13 @@
     cpuStrong = (battleCount % 3 === 0);
     var pool = BEYS.filter(function(b){ return b.id !== myBey.id; });
     var base = pool[Math.floor(Math.random()*pool.length)];
-    /* 通常戦の相手は基礎倍率 1.15。それ以外の仕組み
+    /* 通常戦の相手は基礎倍率 1.25（プレイヤーに「ねばる」ボタンがある分、
+       以前の1.15から少し引き上げ）。それ以外の仕組み
        （ダメージ・弾かれ方・バースト条件・減衰など）は両者完全に対称 */
-    cpuBey = Object.assign({}, base, { cpuMult: 1.15 });
+    cpuBey = Object.assign({}, base, { cpuMult: 1.25 });
     if (cpuStrong){
-      /* 3回に1回は格上のボス戦：基礎倍率1.15にボス追加分（約1.18倍）を
-         掛けて、合計で約1.35倍 */
+      /* 3回に1回は格上のボス戦：基礎倍率1.25にボス追加分（約1.18倍）を
+         掛けて、合計で約1.48倍 */
       cpuBey = Object.assign({}, cpuBey, { cpuMult: cpuBey.cpuMult * 1.18 });
     }
     startCountdown();
@@ -473,7 +521,8 @@
 
   function startCountdown(){
     state = "count";
-    slowmoT = 0;
+    hitstopT = 0; shakeT = 0; hitShakeA = 0; hitShakeB = 0;
+    stadium.style.transform = "";
     battleT = 0;
     gutsLevel = 0; gutsT = 0;
     gutsBtn.style.display = "none";
@@ -489,8 +538,8 @@
     var r = stadium.clientWidth, size = r*0.162;
     /* プレイヤーはゲージ100。CPUは基礎倍率ぶんだけ上限が大きい */
     P = [
-      { b:myBey,  el:makeBeyEl(myBey),  x:r*0.30, y:r*0.62, vx:0, vy:0, ang:0, spin:0, max:100,               me:true,  dir:1,  clashCd:0, kickT:0 },
-      { b:cpuBey, el:makeBeyEl(cpuBey), x:r*0.70, y:r*0.38, vx:0, vy:0, ang:0, spin:0, max:100*cpuBey.cpuMult, me:false, dir:-1, clashCd:0, kickT:0 }
+      { b:myBey,  el:makeBeyEl(myBey),  x:r*0.30, y:r*0.62, vx:0, vy:0, ang:0, spin:0, max:100,               me:true,  dir:1,  clashCd:0, kickT:0, recoverT:0.6, orbitCum:0, orbitAng:null, shrinkStart:null },
+      { b:cpuBey, el:makeBeyEl(cpuBey), x:r*0.70, y:r*0.38, vx:0, vy:0, ang:0, spin:0, max:100*cpuBey.cpuMult, me:false, dir:-1, clashCd:0, kickT:0, recoverT:0.6, orbitCum:0, orbitAng:null, shrinkStart:null }
     ];
     P.forEach(function(p){
       p.el.style.transform = "translate("+(p.x-size/2)+"px,"+(p.y-size/2)+"px)";
@@ -528,8 +577,12 @@
       var R = orbitRadius(p, maxD);
       var a = p.me ? Math.PI*0.75 : Math.PI*1.75;
       p.x = cx + Math.cos(a)*R; p.y = cy + Math.sin(a)*R;
-      var sp = r * 0.80;
+      var sp = r * 1.04;
       p.vx = -Math.sin(a)*sp*p.dir; p.vy = Math.cos(a)*sp*p.dir;
+      /* 周回カウントをリセット：中心まわりの累積角度と縮小開始時刻 */
+      p.orbitCum = 0;
+      p.orbitAng = Math.atan2(p.y - cy, p.x - cx);
+      p.shrinkStart = null;
     });
     hintEl.textContent = cpuStrong ? "👑 ボスだ！ ゲージが へったら 💪ねばる！" : "ゲージが へったら 💪ねばる！ を おしてね";
     lastT = performance.now();
@@ -537,23 +590,28 @@
   }
 
   /* ===== 動き：タイプ別の周回半径 =====
-     アタック（flat）  : 序盤はスタジアムの約85%の大きな円、約13秒かけて
-                         約23%まで縮み、最後は中心の相手に届く
+     アタック（flat）  : 最初の約2周はスタジアムの約85%の大きな円のまま。
+                         中心まわりの累積角度が2周分（720°）を超えたら
+                         縮小を始め、そこから約5秒で約23%まで寄って
+                         中心の相手に届く（開始判定は時間ではなく周回数）。
+                         縮み切ったあとも目標半径は約23%のままなので、
+                         弾かれて外へ出ても再び中心へ戻ってくる
      スタミナ（round） : 約25%の中心寄りの円（基本は真ん中寄りだが、
                          以前の約13%より少し広く回る）
      防御（sharp）     : 約45%の中くらいの円で穏やかに周回 */
   function orbitRadius(p, maxD){
     if (p.b.tip === "flat"){
-      var s = Math.min(1, battleT / 13);
+      if (p.shrinkStart === null || p.shrinkStart === undefined) return maxD * 0.85;
+      var s = Math.min(1, (battleT - p.shrinkStart) / 5);
       return maxD * (0.85 - 0.62 * s);
     }
     if (p.b.tip === "round") return maxD * 0.25;
     return maxD * 0.45;
   }
   /* 周回スピード（接線方向、px/秒）。アタックは速く、防御は穏やか。
-     全タイプとも従来比で約1.45倍の速さ */
+     全タイプとも従来比で約1.45倍→さらに約1.3倍の速さ */
   function orbitSpeed(p, r, speedRatio){
-    var base = p.b.tip === "flat" ? 1.38 : (p.b.tip === "round" ? 0.65 : 0.87);
+    var base = p.b.tip === "flat" ? 1.79 : (p.b.tip === "round" ? 0.85 : 1.13);
     return r * base * (0.35 + 0.65 * speedRatio);
   }
 
@@ -561,10 +619,21 @@
   function tick(now){
     if (state !== "battle") return;
     var rawDt = Math.min(0.033, (now-lastT)/1000); lastT = now;
-    /* 強い衝突の直後だけ一瞬スローにして、弾かれた勢いとの緩急をつける */
+    /* ヒットストップ中は物理dtを0にして両ベイを止める。
+       火花・リングは実時間アニメーションなので止まらず動き続ける。
+       画面振動も実時間で進み、止まっている間も揺れてから収束する */
     var dt = rawDt;
-    if (slowmoT > 0){ slowmoT -= rawDt; dt = rawDt * 0.32; }
-    battleT += rawDt;
+    if (hitstopT > 0){ hitstopT -= rawDt; dt = 0; }
+    if (shakeT > 0){
+      shakeT -= rawDt;
+      if (shakeT <= 0){ shakeT = 0; stadium.style.transform = ""; }
+      else {
+        var sk = shakeAmp * (shakeT / shakeDur) * (shakeT / shakeDur);
+        var sx = (Math.random()*2-1) * sk, sy = (Math.random()*2-1) * sk;
+        stadium.style.transform = "translate("+sx.toFixed(1)+"px,"+sy.toFixed(1)+"px)";
+      }
+    }
+    battleT += rawDt; /* 周回半径の縮小タイマーは従来通り実時間で進める（バランス不変） */
     /* ねばりバフの残り時間（実時間で切れる。切れたら光も消える） */
     if (gutsT > 0){
       gutsT -= rawDt;
@@ -580,7 +649,7 @@
       /* ゲージの自然な減り：タイプ特性 decay が基本（両者同じ計算）。
          アタックは速く（約20秒で満タン→0）、防御は普通（約38秒）、
          スタミナは遅い（約55秒）。CPUの上限は倍率ぶんだけ変わる
-         （通常戦は1.15倍ぶん少し大きく、ボス戦はさらに大きい） */
+         （通常戦は1.25倍ぶん少し大きく、ボス戦はさらに大きい） */
       /* 根性補正（両ベイ共通の基本仕様）：残りゲージが少ないほど
          自然減衰が遅くなる。倍率 = 0.35 + 0.65×残り割合 で、満タン時は
          従来通り（×1.0）、残りわずかでは減衰が約1/3（×0.35）まで落ちる。
@@ -592,12 +661,29 @@
       p.spin -= dec;
       if (p.spin < 0) p.spin = 0;
       if (p.clashCd > 0) p.clashCd -= dt;
-      if (p.kickT > 0) p.kickT -= dt;
+      if (p.kickT > 0){ p.kickT -= dt; p.recoverT = 0; }
       var speedRatio = p.spin / p.max;
 
       var dx = p.x-cx, dy = p.y-cy, d = Math.hypot(dx,dy)||1;
       var ux = dx/d, uy = dy/d;            /* 中心から外向き */
       var tx = -uy*p.dir, ty = ux*p.dir;   /* 周回方向（接線） */
+
+      /* アタックの半径縮小の開始判定：中心まわりの累積角度を数える。
+         位置の角度の差分（−π〜πに正規化）の絶対値を積み上げ、2周分
+         （720°＝4π rad）を超えた瞬間の時刻を shrinkStart に記録する。
+         弾かれている間も位置ベースで数えるので、外へ飛ばされても
+         周回として正しく進む */
+      if (p.b.tip === "flat"){
+        var angNow = Math.atan2(dy, dx);
+        if (p.orbitAng !== null && p.orbitAng !== undefined){
+          var da = angNow - p.orbitAng;
+          while (da > Math.PI) da -= Math.PI*2;
+          while (da < -Math.PI) da += Math.PI*2;
+          p.orbitCum += Math.abs(da);
+          if (p.shrinkStart === null && p.orbitCum >= Math.PI*4) p.shrinkStart = battleT;
+        }
+        p.orbitAng = angNow;
+      }
 
       if (p.kickT > 0){
         /* 弾かれた直後は勢いのまま飛ぶ：操舵せず軽い減衰だけ */
@@ -605,22 +691,39 @@
       } else {
         /* 目標速度＝接線方向の周回＋目標半径へ寄せるバネ、へ滑らかに寄せる */
         var targetR = orbitRadius(p, maxD);
-        var radialV = (targetR - d) * 3.5;
-        var cap = r * 0.72;
+        /* 縮小開始後のアタックだけ：目標より外側にいる間は引き戻しを
+           一時的に強め、弾かれても1周以内に目に見えて中心へ復帰させる。
+           縮小開始前（2周の大回りフェーズ）や内側にいる場合は従来通り */
+        var pullGain = 3.5, pullCap = r * 0.72;
+        if (p.b.tip === "flat" && p.shrinkStart !== null && p.shrinkStart !== undefined && d > targetR){
+          pullGain = 9; pullCap = r * 1.1;
+        }
+        /* 復帰ランプ：弾かれた直後（kickT終了直後）は操舵ゲインと
+           半径引き戻しゲインを約0.6秒かけて 0→通常値へ線形に戻す。
+           いきなり通常の強さで軌道へ曲げ戻す「無理矢理な挙動」を防ぐ。
+           縮小開始後アタックの引き戻し強化（pullGain/pullCap）も
+           このランプを通るので、復帰中は強化も含めて滑らかに効く */
+        p.recoverT = Math.min(0.6, (p.recoverT || 0) + dt);
+        var ramp = p.recoverT / 0.6;
+        var radialV = (targetR - d) * pullGain;
+        var cap = pullCap;
         if (radialV > cap) radialV = cap; else if (radialV < -cap) radialV = -cap;
+        radialV *= ramp;
         var os = orbitSpeed(p, r, speedRatio);
         var desVx = tx*os + ux*radialV;
         var desVy = ty*os + uy*radialV;
-        var steer = Math.min(1, dt*4.6);
+        var steer = Math.min(1, dt*4.6) * ramp;
         p.vx += (desVx - p.vx) * steer;
         p.vy += (desVy - p.vy) * steer;
       }
-      /* 速度の上限：弾かれた直後だけ大きく許す */
+      /* 速度の上限：弾かれた直後だけ大きく許す。
+         kickT終了時も即時クランプせず、どちらの上限でも軟らかい処理で
+         超過分を漸近的に削る（復帰の瞬間に速度がガクッと切れない） */
       var v = Math.hypot(p.vx,p.vy);
-      var vmax = p.kickT > 0 ? r*2.45 : r*1.67;
+      var vmax = p.kickT > 0 ? r*3.19 : r*2.17;
       if (v > vmax){
-        if (p.kickT > 0){ var softCap = vmax + (v - vmax) * Math.max(0, 1 - dt*3); p.vx *= softCap/v; p.vy *= softCap/v; }
-        else { p.vx *= vmax/v; p.vy *= vmax/v; }
+        var softCap = vmax + (v - vmax) * Math.max(0, 1 - dt*3);
+        p.vx *= softCap/v; p.vy *= softCap/v;
       }
       p.x += p.vx*dt; p.y += p.vy*dt;
       /* 壁：スタジアムの縁でバチンと弾かれる（両者同じ） */
@@ -636,7 +739,15 @@
         }
       }
       p.ang += dt * (p.me?1:-1) * p.spin * 0.80;
-      p.el.style.transform = "translate("+(p.x-rad)+"px,"+(p.y-rad)+"px) rotate("+p.ang+"deg)";
+      /* ヒットストップ中の震えは見た目だけ：判定位置(p.x/p.y)は動かさず、
+         transformに小さなランダムオフセットを足すだけ。
+         受けた側(hitShake大)が大きく、与えた側は小さく震える */
+      var jx = 0, jy = 0;
+      if (hitstopT > 0 && hitShakeDur > 0){
+        var amp = (p === P[0] ? hitShakeA : hitShakeB) * Math.max(0, hitstopT / hitShakeDur);
+        if (amp > 0.2){ jx = (Math.random()*2-1) * amp; jy = (Math.random()*2-1) * amp; }
+      }
+      p.el.style.transform = "translate("+(p.x-rad+jx)+"px,"+(p.y-rad+jy)+"px) rotate("+p.ang+"deg)";
       /* ねばり中はフラフラ（wobble）も止まる＝粘って回り続けているのが見える */
       p.el.classList.toggle("wobble", speedRatio < 0.3 && p.spin > 0 && !(p.me && gutsT > 0));
     });
@@ -662,24 +773,36 @@
           var impulse = (1 + rest) * approach / 2;
           a.vx -= impulse*nx; a.vy -= impulse*ny;
           b.vx += impulse*nx; b.vy += impulse*ny;
-          /* ノックバック：両方とも同じだけ弾かれる */
-          var avgSpin = (a.spin/a.max + b.spin/b.max) / 2;
-          var kick = r * (0.16 + 0.30*avgSpin) + approach * 0.28;
-          a.vx -= nx*kick; a.vy -= ny*kick;
-          b.vx += nx*kick; b.vy += ny*kick;
-          /* 横方向のキック：当たったあとカーブして離れる、本物のベイらしい動き */
-          var tx = -ny, ty = nx;
-          var swerve = (Math.random()*0.7 + 0.5) * r * 0.22 * (Math.random() < 0.5 ? 1 : -1);
-          a.vx += tx*swerve; a.vy += ty*swerve;
-          b.vx -= tx*swerve; b.vy -= ty*swerve;
+          /* ノックバック：従来比で約1.35倍（前回の約1.5倍から少し控えめに）。
+             非対称は維持する：回転がより残っている側（強く当たった側）が
+             相手をより遠くへ弾き、自分はあまり飛ばない。
+             壁の跳ね返りは速度ベースの反射なので、吹っ飛びが大きく
+             なれば当たったときの跳ね返りも自然に強くなる */
+          var spinRa = a.spin/a.max, spinRb = b.spin/b.max;
+          var avgSpin = (spinRa + spinRb) / 2;
+          var kick = (r * (0.16 + 0.30*avgSpin) + approach * 0.28) * 1.35;
+          var edge = spinRa - spinRb; /* -1〜1：正なら a の方が回転が残っている */
+          var kickA = kick * (1 - 0.45*edge);
+          var kickB = kick * (1 + 0.45*edge);
+          a.vx -= nx*kickA; a.vy -= ny*kickA;
+          b.vx += nx*kickB; b.vy += ny*kickB;
+          /* 横方向のキック：当たったあとカーブして離れる、本物のベイらしい動き。
+             符号はランダムではなく各ベイ自身の周回方向（dir）に合わせる：
+             自分の回る向きと喧嘩しないので、弾かれたあと逆向きに動いてから
+             無理に回り始める二段モーションにならない。大きさは従来通り */
+          var swMag = (Math.random()*0.7 + 0.5) * r * 0.22;
+          var adx = a.x-cx, ady = a.y-cy, ad = Math.hypot(adx,ady)||1;
+          var bdx = b.x-cx, bdy = b.y-cy, bd = Math.hypot(bdx,bdy)||1;
+          a.vx += (-ady/ad)*a.dir*swMag; a.vy += (adx/ad)*a.dir*swMag;
+          b.vx += (-bdy/bd)*b.dir*swMag; b.vy += (bdx/bd)*b.dir*swMag;
           /* 弾かれた直後は二人とも一瞬ゆっくりに見せてから勢いよく離れる */
           a.clashCd = 0.18; b.clashCd = 0.18;
-          a.kickT = 0.5; b.kickT = 0.5;
-          if (hard) slowmoT = 0.13;
+          a.kickT = 0.25; b.kickT = 0.25;
+          /* ヒットストップはダメージ確定後に下で設定する（受けた側の判定に使うため） */
           /* ダメージ：与える側の atk × 受ける側の guard で決まる（両者共通の式）。
-             攻撃タイプは atk 1.4 で大きく削るが guard は普通（1.0）。
+             攻撃タイプは atk 1.3 で大きく削るが guard は普通（1.0）。
              スタミナは atk 0.7 で削りは小さいが guard 1.3 で削られやすい。
-             防御は atk 0.7 で削りは小さいが guard 0.6 で硬い。
+             防御は atk 0.9 で削りはほどほど、guard 0.6 で硬い。
              CPUの基礎倍率は与ダメージにも同じだけ乗る */
           var multA = b.me ? 1 : b.b.cpuMult; /* b→a への倍率 */
           var multB = a.me ? 1 : a.b.cpuMult; /* a→b への倍率 */
@@ -692,23 +815,32 @@
             if (b.me) dmgB *= (1 - 0.6 * gutsLevel);
           }
           a.spin -= dmgA; b.spin -= dmgB;
-          sparks((a.x+b.x)/2, (a.y+b.y)/2, hard?14:8);
-          ringFx((a.x+b.x)/2, (a.y+b.y)/2);
+          /* ===== 手応え：ヒットストップ＋震え＋ヒットマーク＋画面振動 =====
+             止まる長さは衝撃の強さで変える（通常 約50ms／強い一撃 約110ms）。
+             受けた側（受けたダメージが大きい側）を大きく震わせる */
+          hitstopT = hard ? 0.11 : 0.05;
+          hitShakeDur = hitstopT;
+          if (dmgA >= dmgB){ hitShakeA = hard?5.5:3.5; hitShakeB = hard?2:1.2; }
+          else             { hitShakeB = hard?5.5:3.5; hitShakeA = hard?2:1.2; }
+          /* 画面振動は強い一撃だけ：約0.18秒、最大約5px、最初強く→収束 */
+          if (hard){ shakeDur = 0.18; shakeT = shakeDur; shakeAmp = Math.min(6, r*0.018); }
+          var hitX = (a.x+b.x)/2, hitY = (a.y+b.y)/2;
+          sparks(hitX, hitY, hard?16:9, hard);
+          ringFx(hitX, hitY, hard);
+          hitCore(hitX, hitY, hard);
           SFX.clash(hard);
           if (navigator.vibrate) navigator.vibrate(hard?60:25);
-          /* バースト：強い一撃で、残りゲージが少ない相手がたまに弾け飛ぶ。
-             攻撃タイプの強い一撃を受けたときは少し起きやすい（両者同じルール） */
+          /* バースト：強い一撃のときだけ、残りゲージが少ない相手が
+             ごくまれに弾け飛ぶ（目安は3試合に1回起きるかどうか）。
+             攻撃タイプの強い一撃を受けたときは少しだけ起きやすい
+             （両者同じルール）。通常ヒットではバーストしない */
           if (hard){
             var burstThreshA = (b.b.tip === "flat") ? 0.30 : 0.22;
-            var burstProbA   = (b.b.tip === "flat") ? 0.50 : 0.35;
+            var burstProbA   = (b.b.tip === "flat") ? 0.04 : 0.03;
             var burstThreshB = (a.b.tip === "flat") ? 0.30 : 0.22;
-            var burstProbB   = (a.b.tip === "flat") ? 0.50 : 0.35;
+            var burstProbB   = (a.b.tip === "flat") ? 0.04 : 0.03;
             if (a.spin < a.max*burstThreshA && Math.random()<burstProbA) return finish(a, true);
             if (b.spin < b.max*burstThreshB && Math.random()<burstProbB) return finish(b, true);
-          } else {
-            /* 通常ヒットでも、残りわずかなら両方とも たまにバーストする */
-            if (a.spin < a.max*0.12 && Math.random()<0.14) return finish(a, true);
-            if (b.spin < b.max*0.12 && Math.random()<0.14) return finish(b, true);
           }
         } else if (approach > 0){
           /* クールダウン中はすり抜けず、軽く押し合いだけ続ける */
@@ -727,13 +859,13 @@
     raf = requestAnimationFrame(tick);
   }
 
-  function sparks(x,y,n){
+  function sparks(x,y,n,hard){
     for (var i=0;i<n;i++){
       var s = document.createElement("div");
-      s.className = "spark";
+      s.className = "spark" + (hard && i%3===0 ? " big" : "");
       s.style.left = x+"px"; s.style.top = y+"px";
       stadium.appendChild(s);
-      var a = Math.random()*Math.PI*2, d = 26+Math.random()*54;
+      var a = Math.random()*Math.PI*2, d = 26+Math.random()*(hard?78:54);
       s.animate([
         { transform:"translate(0,0) scale(1)", opacity:1 },
         { transform:"translate("+(Math.cos(a)*d)+"px,"+(Math.sin(a)*d)+"px) scale(.2)", opacity:0 }
@@ -741,11 +873,25 @@
       setTimeout((function(el){ return function(){ el.remove(); }; })(s), 520);
     }
   }
-  function ringFx(x,y){
+  function ringFx(x,y,hard){
     var s = document.createElement("div");
-    s.className = "ringFx"; s.style.left = x+"px"; s.style.top = y+"px";
+    s.className = "ringFx" + (hard ? " hard" : ""); s.style.left = x+"px"; s.style.top = y+"px";
     stadium.appendChild(s);
-    setTimeout(function(){ s.remove(); }, 480);
+    setTimeout(function(){ s.remove(); }, hard ? 460 : 340);
+  }
+  /* 当たった位置の白い芯（ヒットマークの中心） */
+  function hitCore(x,y,hard){
+    var s = document.createElement("div");
+    s.className = "hitCore" + (hard ? " hard" : ""); s.style.left = x+"px"; s.style.top = y+"px";
+    stadium.appendChild(s);
+    setTimeout(function(){ s.remove(); }, hard ? 260 : 200);
+  }
+  /* バースト時のフラッシュ：一瞬だけ画面を白く光らせる */
+  function burstFlash(){
+    if (!flashEl) return;
+    flashEl.animate([
+      { opacity:0.9 }, { opacity:0 }
+    ], { duration:260, easing:"ease-out" });
   }
 
   /* ===== ゲージ ===== */
@@ -770,14 +916,40 @@
     if (burst){
       SFX.burst();
       if (navigator.vibrate) navigator.vibrate([80,40,120]);
-      loser.el.innerHTML = beyPiecesHTML(loser.b);
-      var dirs = [[-1,-1],[ -1.4,0.4],[1,1]];
-      var pieces = loser.el.querySelectorAll(".piece");
-      pieces.forEach(function(pc, i){
-        pc.style.transform = "translate("+(dirs[i][0]*70)+"px,"+(dirs[i][1]*70)+"px) rotate("+(i*70-60)+"deg)";
-        pc.style.opacity = "0.25";
-      });
-      sparks(loser.x, loser.y, 22);
+      /* バーストは最長のヒットストップ（約200ms）＋フラッシュ：
+         一瞬止まって激しく震えてから、パーツが弾け飛ぶ */
+      burstFlash();
+      /* 終了後はtickが止まるので、画面振動はWAAPIで直接かける（短く収束） */
+      if (stadium.animate){
+        stadium.animate([
+          { transform:"translate(0px,0px)" },
+          { transform:"translate(5px,-4px)" },
+          { transform:"translate(-4px,3px)" },
+          { transform:"translate(2px,-1px)" },
+          { transform:"translate(0px,0px)" }
+        ], { duration:220, easing:"ease-out" });
+      }
+      var br = stadium.clientWidth, brad = br*0.162/2;
+      var baseTr = "translate("+(loser.x-brad)+"px,"+(loser.y-brad)+"px) rotate("+loser.ang+"deg)";
+      var bStart = performance.now();
+      (function bShake(now){
+        var bt = (now-bStart)/1000;
+        if (bt >= 0.2 || state !== "end"){ loser.el.style.transform = baseTr; return; }
+        var ba = 6 * (1 - bt/0.2);
+        loser.el.style.transform = "translate("+(loser.x-brad+(Math.random()*2-1)*ba)+"px,"+(loser.y-brad+(Math.random()*2-1)*ba)+"px) rotate("+loser.ang+"deg)";
+        requestAnimationFrame(bShake);
+      })(bStart);
+      setTimeout(function(){
+        if (state !== "end") return;
+        loser.el.innerHTML = beyPiecesHTML(loser.b);
+        var dirs = [[-1,-1],[ -1.4,0.4],[1,1]];
+        var pieces = loser.el.querySelectorAll(".piece");
+        pieces.forEach(function(pc, i){
+          pc.style.transform = "translate("+(dirs[i][0]*70)+"px,"+(dirs[i][1]*70)+"px) rotate("+(i*70-60)+"deg)";
+          pc.style.opacity = "0.25";
+        });
+        sparks(loser.x, loser.y, 22, true);
+      }, 200);
     } else {
       SFX.spinout();
       loser.el.classList.add("wobble");
@@ -823,7 +995,8 @@
   /* ===== リセット ===== */
   function reset(){
     state = "pick";
-    slowmoT = 0;
+    hitstopT = 0; shakeT = 0; hitShakeA = 0; hitShakeB = 0;
+    stadium.style.transform = "";
     gutsLevel = 0; gutsT = 0;
     gutsBtn.style.display = "none";
     gutsOff();
