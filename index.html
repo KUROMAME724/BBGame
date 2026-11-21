@@ -210,7 +210,7 @@
   var BEYS = [
     { id:"red",   name:"ほのおドラゴン", type:"🔥 アタック", tip:"flat",  tipLabel:"そこ：たいら", main:"#ef4444", dark:"#991b1b", light:"#fca5a5", blades:3, power:1.3,  stamina:0.68, move:1.75, roam:1.0 },
     { id:"blue",  name:"うみウェーブ",   type:"💧 スタミナ", tip:"round", tipLabel:"そこ：まるい", main:"#3b82f6", dark:"#1e3a8a", light:"#93c5fd", blades:4, power:0.95, stamina:1.3,  move:0.9,  roam:0.85 },
-    { id:"green", name:"もりタートル",   type:"🌿 ディフェンス", tip:"sharp", tipLabel:"そこ：とがった", main:"#22c55e", dark:"#14532d", light:"#86efac", blades:6, power:0.8, stamina:1.08, move:0.42, roam:0.55 }
+    { id:"green", name:"もりタートル",   type:"🌿 ディフェンス", tip:"sharp", tipLabel:"そこ：とがった", main:"#22c55e", dark:"#14532d", light:"#86efac", blades:6, power:0.8, stamina:1.08, move:0.42, roam:0.30 }
   ];
 
   /* 底の形の横から見た図（選択カード用） */
@@ -420,8 +420,8 @@
 
     var r = stadium.clientWidth, size = r*0.162;
     P = [
-      { b:myBey,  el:makeBeyEl(myBey),  x:r*0.30, y:r*0.62, vx:0, vy:0, ang:0, spin:0, max:100*myBey.stamina,  me:true,  mode:"orbit", modeT:0.8, pace:1, paceT:1, clashCd:0, kickT:0, jitterT:0, spiralR:null },
-      { b:cpuBey, el:makeBeyEl(cpuBey), x:r*0.70, y:r*0.38, vx:0, vy:0, ang:0, spin:0, max:100*cpuBey.stamina, me:false, mode:"orbit", modeT:1.3, pace:1, paceT:1, clashCd:0, kickT:0, jitterT:0, spiralR:null }
+      { b:myBey,  el:makeBeyEl(myBey),  x:r*0.30, y:r*0.62, vx:0, vy:0, ang:0, spin:0, max:100*myBey.stamina,  me:true,  mode:"orbit", modeT:0.8, pace:1, paceT:1, clashCd:0, kickT:0, jitterT:0, loopR:null, loopDir:-1, crossT:2, crossX:null, crossY:null },
+      { b:cpuBey, el:makeBeyEl(cpuBey), x:r*0.70, y:r*0.38, vx:0, vy:0, ang:0, spin:0, max:100*cpuBey.stamina, me:false, mode:"orbit", modeT:1.3, pace:1, paceT:1, clashCd:0, kickT:0, jitterT:0, loopR:null, loopDir:-1, crossT:2, crossX:null, crossY:null }
     ];
     P.forEach(function(p){
       p.el.style.transform = "translate("+(p.x-size/2)+"px,"+(p.y-size/2)+"px)";
@@ -475,6 +475,11 @@
     if (roll < chaseW){ p.mode = "chase"; p.paceT = 0.9 + 0.5*mv;  p.modeT = (0.7 + Math.random()*0.7) * dur; }
     else if (roll < chaseW + 0.38){ p.mode = "orbit"; p.paceT = 0.55 + 0.45*mv; p.modeT = (0.9 + Math.random()*1.1) * dur; }
     else { p.mode = "drift"; p.paceT = 0.25 + 0.25*mv; p.modeT = (0.8 + Math.random()*0.9) * dur; }
+    /* 防御（底が尖っている）は実物どおり中心からほぼ動かない：
+       突っ込みはたいてい中心まわりの小さな周回に置き換える */
+    if (p.b.tip === "sharp" && p.mode === "chase" && Math.random() < 0.75){
+      p.mode = "orbit"; p.paceT = 0.35 + 0.3*mv; p.modeT = 1.0 + Math.random()*0.8;
+    }
   }
 
   function tick(now){
@@ -528,22 +533,46 @@
       var centerPull = 30 * (1.6 - 0.55 * p.b.move);
       p.vx += (-dy/d)*orbit*dt*2.2 - (dx/d)*speedRatio*dt*centerPull;
       p.vy += (dx/d)*orbit*dt*2.2 - (dy/d)*speedRatio*dt*centerPull;
-      /* アタック（底が平ら）だけ渦巻き軌道：目標半径が少しずつ縮んでいき、
-         接線方向の動きに中心方向の成分が常に混ざるので、外周に張り付いたままにならない。
+      /* アタック（底が平ら）は実物どおり、中心に留まらずスタジアム全体を
+         大きなループで走り回る：目標半径が外⇔中ほどを行ったり来たりして
+         花びら状の軌道になり、ときどき中心を横切って反対側まで突っ切る。
          防御・スタミナの周回は今まで通り */
       if (p.b.tip === "flat"){
-        if (p.spiralR == null || p.spiralR > maxD) p.spiralR = maxD;
-        p.spiralR -= dt * r * 0.05 * (0.5 + 0.5 * speedRatio);
-        if (p.spiralR <= r * 0.07){
-          /* 中心近くまで来たら目標半径を外側に戻し、相手への突進（chase）につなげる */
-          p.spiralR = maxD;
-          if (foe && p.mode !== "chase"){ p.mode = "chase"; p.paceT = 1.3; p.modeT = 0.9; }
-        } else if (d > p.spiralR){
-          /* 目標半径より外にいる間は、中心方向へ引っ張り続ける */
-          var pull = Math.min((d - p.spiralR) * 3.0, r * 0.55);
-          p.vx += -(dx/d) * pull * dt;
-          p.vy += -(dy/d) * pull * dt;
+        if (p.loopR == null){ p.loopR = maxD; p.loopDir = -1; p.crossT = 1.6 + Math.random()*1.8; p.crossX = null; }
+        if (p.crossX != null){
+          /* 突っ切り中：中心の向こう側の目標点へまっすぐ進む */
+          var tx2 = p.crossX - p.x, ty2 = p.crossY - p.y, td = Math.hypot(tx2,ty2)||1;
+          var rush = r * 1.9 * (0.4 + 0.6 * speedRatio);
+          p.vx += (tx2/td)*rush*dt; p.vy += (ty2/td)*rush*dt;
+          if (td < r * 0.08){ p.crossX = null; p.crossT = 2.2 + Math.random()*2.2; p.loopR = maxD; p.loopDir = -1; }
+        } else {
+          p.crossT -= dt;
+          if (p.crossT <= 0 && speedRatio > 0.3){
+            /* 中心を横切る：今いる位置の中心対称の点を目標にする */
+            p.crossX = cx + (cx - p.x) * 0.85;
+            p.crossY = cy + (cy - p.y) * 0.85;
+          }
+          /* 目標半径を行ったり来たりさせる（中心には寄り切らない） */
+          p.loopR += p.loopDir * dt * r * 0.16 * (0.5 + 0.5 * speedRatio);
+          if (p.loopR <= maxD * 0.42){ p.loopR = maxD * 0.42; p.loopDir = 1; }
+          if (p.loopR >= maxD){ p.loopR = maxD; p.loopDir = -1; }
+          if (d > p.loopR){
+            var pull = Math.min((d - p.loopR) * 3.0, r * 0.55);
+            p.vx += -(dx/d) * pull * dt;
+            p.vy += -(dy/d) * pull * dt;
+          } else if (d < p.loopR - r * 0.05){
+            /* 内側に入りすぎたら外へ押し出し、大きなループを保つ */
+            var push = Math.min((p.loopR - d) * 2.0, r * 0.4);
+            p.vx += (dx/d) * push * dt;
+            p.vy += (dy/d) * push * dt;
+          }
         }
+      }
+      /* 防御（底が尖っている）は実物どおり中心のごく狭い範囲だけ：
+         中心へ戻すバネを強め、外へ出てもすぐ小さな円に戻る */
+      if (p.b.tip === "sharp"){
+        p.vx += -dx * 3.2 * dt;
+        p.vy += -dy * 3.2 * dt;
       }
       if (p.mode === "chase" && foe){
         /* 突進の速さは両方とも同じ */
@@ -625,9 +654,9 @@
           /* 弾かれた直後は二人とも一瞬ゆっくりに見せてから勢いよく離れる */
           a.clashCd = 0.18; b.clashCd = 0.18;
           a.kickT = 0.5; b.kickT = 0.5;
-          /* 弾かれたアタックは、また外側から渦巻きで戻ってくる */
-          if (a.b.tip === "flat") a.spiralR = maxD;
-          if (b.b.tip === "flat") b.spiralR = maxD;
+          /* 弾かれたアタックは、また外側から大きなループで戻ってくる */
+          if (a.b.tip === "flat"){ a.loopR = maxD; a.loopDir = -1; a.crossX = null; }
+          if (b.b.tip === "flat"){ b.loopR = maxD; b.loopDir = -1; b.crossX = null; }
           if (hard) slowmoT = 0.13;
           /* 弾かれた後は少し休んでからまた動き出す（間） */
           a.mode = "drift"; a.paceT = 0.5; a.modeT = 0.45 + Math.random()*0.3;
