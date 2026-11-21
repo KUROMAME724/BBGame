@@ -10,7 +10,7 @@
   :root{
     --bg:#eef4ff; --panel:#ffffff; --ink:#16213c; --sub:#5a6a8c;
     --arena:#22355e; --arena2:#16233f; --ring:#3f5c96;
-    --accent:#ffcf3f; --go:#ff4d4d; --boost:#22c55e;
+    --accent:#ffcf3f; --go:#ff4d4d;
     --card-border:#d7e0f2;
   }
   @media (prefers-color-scheme: dark){
@@ -122,9 +122,7 @@
   .bigbtn:active{transform:translateY(5px); box-shadow:0 3px 0 rgba(0,0,0,.22);}
   #shootBtn{background:linear-gradient(180deg,#ff7a59,#f43f3f);}
   #shootBtn:disabled{filter:grayscale(.6) brightness(.8);}
-  #tapBtn{background:linear-gradient(180deg,#4ade80,#16a34a); display:none;}
   #againBtn2{background:linear-gradient(180deg,#fbbf24,#f97316);}
-  #tapBtn.cool{filter:grayscale(.55) brightness(.75);}
   .hintline{text-align:center; font-size:clamp(14px,3.6vw,18px); font-weight:800; color:var(--sub); min-height:1.4em;}
 
   /* ---------- けっか ---------- */
@@ -186,7 +184,6 @@
   <div id="controls">
     <div class="hintline" id="hint">ベイを えらぶと シュートできるよ</div>
     <button class="bigbtn" id="shootBtn" disabled>🚀 シュート！</button>
-    <button class="bigbtn" id="tapBtn">👆 タップで パワーアップ！</button>
   </div>
 </div>
 
@@ -202,16 +199,22 @@
 (function(){
   "use strict";
 
-  /* ===== ベイのデータ（オリジナル） ===== */
-  /* そこ（底）の形で動きと持久が変わる：
-     アタック＝平ら → 地面をよく掴んで激しく動き回るが、摩擦で持久が低い
-     ディフェンス＝尖っている → 接点が小さく中心で大人しく安定して回る
-     スタミナ＝丸い → バランス型で一番長く回る */
+  /* ===== ベイのデータ（オリジナル） =====
+     性能はタイプ特性として両者まったく同じルールで効く：
+       atk   = ぶつかったときに相手のゲージを削る力（与ダメージ倍率）
+       decay = ゲージの自然な減り（1秒あたり。大きいほど早く止まる）
+       guard = ぶつかったときに自分のゲージが削られる量（被ダメージ倍率。
+               小さいほど硬い＝削りガードが強い）
+     動きは底の形（tip）で決まる：
+       flat（アタック）  = 大きくグルグル周回し、時間とともに半径が縮む
+       round（スタミナ） = 基本は真ん中、小さな円だけ
+       sharp（防御）     = その中間、中くらいの半径で穏やかに周回 */
   var BEYS = [
-    { id:"red",   name:"ほのおドラゴン", type:"🔥 アタック", tip:"flat",  tipLabel:"そこ：たいら", main:"#ef4444", dark:"#991b1b", light:"#fca5a5", blades:3, power:1.3,  stamina:0.68, move:1.75, roam:1.0 },
-    { id:"blue",  name:"うみウェーブ",   type:"💧 スタミナ", tip:"round", tipLabel:"そこ：まるい", main:"#3b82f6", dark:"#1e3a8a", light:"#93c5fd", blades:4, power:0.95, stamina:1.3,  move:0.9,  roam:0.85 },
-    { id:"green", name:"もりタートル",   type:"🌿 ディフェンス", tip:"sharp", tipLabel:"そこ：とがった", main:"#22c55e", dark:"#14532d", light:"#86efac", blades:6, power:0.8, stamina:1.08, move:0.42, roam:0.30 }
+    { id:"red",   name:"ほのおドラゴン", type:"🔥 アタック",     tip:"flat",  tipLabel:"そこ：たいら",   main:"#ef4444", dark:"#991b1b", light:"#fca5a5", blades:3, atk:1.4, decay:7.5, guard:1.0 },
+    { id:"blue",  name:"うみウェーブ",   type:"💧 スタミナ",     tip:"round", tipLabel:"そこ：まるい",   main:"#3b82f6", dark:"#1e3a8a", light:"#93c5fd", blades:4, atk:0.7, decay:2.7, guard:1.3 },
+    { id:"green", name:"もりタートル",   type:"🌿 ディフェンス", tip:"sharp", tipLabel:"そこ：とがった", main:"#22c55e", dark:"#14532d", light:"#86efac", blades:6, atk:0.7, decay:3.9, guard:0.6 }
   ];
+  /* ゲージ満タン量（プレイヤー側）。CPU側は基礎倍率ぶんだけ少し大きい */
 
   /* 底の形の横から見た図（選択カード用） */
   function tipSVG(b){
@@ -228,9 +231,8 @@
       '<rect x="9" y="8" width="22" height="5" rx="2" fill="'+b.dark+'"/>' + tip + '</svg>';
   }
 
-  function beySVG(b, uid){
-    /* 「丸い方が好き」との希望で、角ばった刃やトゲはやめる。
-       刃の数だけ丸いふくらみ（コブ）を並べた、まんまるに近い形にする。
+  function beySVG(b){
+    /* 丸い形：刃の数だけ丸いふくらみ（コブ）を並べた、まんまるに近い輪郭。
        コブの数でタイプの違いは残しつつ、輪郭は全部なめらかな弧だけにする。
        中心(100,100)から半径r・角度degの点を返す */
     function C(r, deg){
@@ -305,7 +307,6 @@
     go:     function(){ tone(880,.4,"square",.2,1320); noise(.25,.12,3000); },
     shoot:  function(){ noise(.5,.28,900); tone(180,.5,"sawtooth",.1,720); },
     clash:  function(hard){ noise(.12,.4, hard?3400:2400); tone(hard?1560:1180,.1,"square",.14,300); },
-    boost:  function(){ tone(520,.18,"sawtooth",.14,1180); },
     burst:  function(){ noise(.55,.5,700); tone(220,.5,"sawtooth",.22,40); tone(1200,.2,"square",.15,200,.03); },
     spinout:function(){ tone(700,.7,"sine",.18,90); },
     win:    function(){ [523,659,784,1046].forEach(function(f,i){ tone(f,.28,"triangle",.24,null,i*.13); }); noise(.4,.08,4000,.5); },
@@ -317,17 +318,15 @@
   var countEl = document.getElementById("count");
   var hintEl  = document.getElementById("hint");
   var shootBtn= document.getElementById("shootBtn");
-  var tapBtn  = document.getElementById("tapBtn");
   var gauges  = document.getElementById("gauges");
   var resultEl= document.getElementById("result");
   var myBey = null, cpuBey = null;
   var battleCount = 0, cpuStrong = false; // 3回に1回、相手がボスとしてさらに強くなる
   var state = "pick"; // pick | count | battle | end
   var P = []; // 物理オブジェクト
-  var raf = null, lastT = 0, boostReady = true;
+  var raf = null, lastT = 0;
   var slowmoT = 0; // 強い衝突直後のスロー（緩急用）
-  var battleT = 0; // バトル経過時間（お椀地形の効きと渦の縮小に使う）
-  var cpuBoostT = 1.0; // 相手も自分でパワーアップするタイマー
+  var battleT = 0; // バトル経過時間（アタックの周回半径の縮小に使う）
 
   /* スタジアムを空きスペースにぴったり合わせる */
   var stageWrap = document.getElementById("stageWrap");
@@ -390,19 +389,10 @@
     var base = pool[Math.floor(Math.random()*pool.length)];
     /* 通常戦の相手は基礎ステータスだけ 1.15倍。それ以外の仕組み
        （ダメージ・弾かれ方・バースト条件・減衰など）は両者完全に対称 */
-    cpuBey = Object.assign({}, base, {
-      power: base.power * 1.15,
-      stamina: base.stamina * 1.15,
-      move: base.move,
-      roam: base.roam
-    });
+    cpuBey = Object.assign({}, base, { cpuMult: 1.15 });
     if (cpuStrong){
       /* 3回に1回は格上のボス戦：基礎倍率と合わせて約1.35倍 */
-      cpuBey = Object.assign({}, cpuBey, {
-        power: cpuBey.power * 1.18,
-        stamina: cpuBey.stamina * 1.18,
-        move: Math.min(2.2, cpuBey.move * 1.05)
-      });
+      cpuBey = Object.assign({}, cpuBey, { cpuMult: cpuBey.cpuMult * 1.18 });
     }
     startCountdown();
   });
@@ -411,9 +401,7 @@
     state = "count";
     slowmoT = 0;
     battleT = 0;
-    cpuBoostT = 3.0 + Math.random()*1.0;
     shootBtn.style.display = "none";
-    tapBtn.style.display = "none";
     resultEl.style.display = "none";
     document.getElementById("pick").style.display = "none";
     hintEl.textContent = "";
@@ -422,9 +410,10 @@
     fitStadium();
 
     var r = stadium.clientWidth, size = r*0.162;
+    /* プレイヤーはゲージ100。CPUは基礎倍率ぶんだけ上限が大きい */
     P = [
-      { b:myBey,  el:makeBeyEl(myBey),  x:r*0.30, y:r*0.62, vx:0, vy:0, ang:0, spin:0, max:100*myBey.stamina,  me:true,  mode:"orbit", modeT:0.8, pace:1, paceT:1, clashCd:0, kickT:0, jitterT:0, loopR:null, loopDir:-1, crossT:2, crossX:null, crossY:null, boostRushT:0, shrinkProg:0 },
-      { b:cpuBey, el:makeBeyEl(cpuBey), x:r*0.70, y:r*0.38, vx:0, vy:0, ang:0, spin:0, max:100*cpuBey.stamina, me:false, mode:"orbit", modeT:1.3, pace:1, paceT:1, clashCd:0, kickT:0, jitterT:0, loopR:null, loopDir:-1, crossT:2, crossX:null, crossY:null, boostRushT:0, shrinkProg:0 }
+      { b:myBey,  el:makeBeyEl(myBey),  x:r*0.30, y:r*0.62, vx:0, vy:0, ang:0, spin:0, max:100,               me:true,  dir:1,  clashCd:0, kickT:0 },
+      { b:cpuBey, el:makeBeyEl(cpuBey), x:r*0.70, y:r*0.38, vx:0, vy:0, ang:0, spin:0, max:100*cpuBey.cpuMult, me:false, dir:-1, clashCd:0, kickT:0 }
     ];
     P.forEach(function(p){
       p.el.style.transform = "translate("+(p.x-size/2)+"px,"+(p.y-size/2)+"px)";
@@ -453,38 +442,42 @@
   function launch(){
     state = "battle";
     var r = stadium.clientWidth;
-    P.forEach(function(p, idx){
+    P.forEach(function(p){
       p.spin = p.max;
-      var a = Math.random()*Math.PI*2;
-      var sp = r*0.55;
-      p.vx = Math.cos(a)*sp; p.vy = Math.sin(a)*sp;
-      if (idx===1){ p.vx = -p.vx*0.9; p.vy = -p.vy*0.9; }
+      /* 最初から自分のタイプの周回軌道に乗せる：中心から目標半径の位置に置き、
+         接線方向の初速を与える */
+      var cx = r/2, cy = r/2, maxD = r/2 - (r*0.162)/2 - r*0.035;
+      var R = orbitRadius(p, maxD);
+      var a = p.me ? Math.PI*0.75 : Math.PI*1.75;
+      p.x = cx + Math.cos(a)*R; p.y = cy + Math.sin(a)*R;
+      var sp = r * 0.55;
+      p.vx = -Math.sin(a)*sp*p.dir; p.vy = Math.cos(a)*sp*p.dir;
     });
-    tapBtn.style.display = "block";
-    hintEl.textContent = cpuStrong ? "👑 ボスだ！ きあいで たたかおう！" : "タップで パワーアップ！ うまく あてよう！";
-    boostReady = true; tapBtn.classList.remove("cool");
+    hintEl.textContent = cpuStrong ? "👑 ボスだ！ たたかいを みててね！" : "たたかいを みててね！";
     lastT = performance.now();
     raf = requestAnimationFrame(tick);
   }
 
-  /* ===== 物理ループ ===== */
-  function pickMode(p){
-    /* 追いかけ方は両方とも同じルール。CPUだけ常時突っ込んだりはしない */
-    var roll = Math.random();
-    var mv = p.b.move;
-    var base = p.b.power >= 1.1 ? 0.48 : (p.b.power >= 0.9 ? 0.36 : 0.24);
-    var chaseW = Math.min(0.66, Math.max(0.05, base * mv));
-    var dur = (1.25 - 0.32 * mv);
-    if (roll < chaseW){ p.mode = "chase"; p.paceT = 0.9 + 0.5*mv;  p.modeT = (0.7 + Math.random()*0.7) * dur; }
-    else if (roll < chaseW + 0.38){ p.mode = "orbit"; p.paceT = 0.55 + 0.45*mv; p.modeT = (0.9 + Math.random()*1.1) * dur; }
-    else { p.mode = "drift"; p.paceT = 0.25 + 0.25*mv; p.modeT = (0.8 + Math.random()*0.9) * dur; }
-    /* 防御（底が尖っている）は実物どおり中心からほぼ動かない：
-       突っ込みはたいてい中心まわりの小さな周回に置き換える */
-    if (p.b.tip === "sharp" && p.mode === "chase" && Math.random() < 0.75){
-      p.mode = "orbit"; p.paceT = 0.35 + 0.3*mv; p.modeT = 1.0 + Math.random()*0.8;
+  /* ===== 動き：タイプ別の周回半径 =====
+     アタック（flat）  : 序盤はスタジアムの約85%の大きな円、約25秒かけて
+                         約23%まで縮み、最後は中心の相手に届く
+     スタミナ（round） : 約13%の小さな中心円のみ（基本は真ん中）
+     防御（sharp）     : 約45%の中くらいの円で穏やかに周回 */
+  function orbitRadius(p, maxD){
+    if (p.b.tip === "flat"){
+      var s = Math.min(1, battleT / 25);
+      return maxD * (0.85 - 0.62 * s);
     }
+    if (p.b.tip === "round") return maxD * 0.13;
+    return maxD * 0.45;
+  }
+  /* 周回スピード（接線方向、px/秒）。アタックは速く、防御は穏やか */
+  function orbitSpeed(p, r, speedRatio){
+    var base = p.b.tip === "flat" ? 0.95 : (p.b.tip === "round" ? 0.45 : 0.6);
+    return r * base * (0.35 + 0.65 * speedRatio);
   }
 
+  /* ===== 物理ループ ===== */
   function tick(now){
     if (state !== "battle") return;
     var rawDt = Math.min(0.033, (now-lastT)/1000); lastT = now;
@@ -495,159 +488,52 @@
     var r = stadium.clientWidth, size = r*0.162, rad = size/2;
     var cx = r/2, cy = r/2, maxD = r/2 - rad - r*0.035;
 
-    /* 相手の自己ブースト：回復+6、間隔3.0〜4.0秒、ダッシュは控えめ。
-       きみのタップブースト（回復+10）の方が強い */
-    if (P.length===2){
-      cpuBoostT -= dt;
-      if (cpuBoostT <= 0){
-        var cpu = P[1], you = P[0];
-        cpu.spin = Math.min(cpu.max, cpu.spin + 6);
-        var cdx = you.x-cpu.x, cdy = you.y-cpu.y, cd = Math.hypot(cdx,cdy)||1;
-        cpu.vx += cdx/cd * r * 0.22; cpu.vy += cdy/cd * r * 0.22;
-        cpu.kickT = 0.4; cpu.mode = "chase"; cpu.paceT = 1.3; cpu.modeT = 0.7;
-        /* CPUブーストも外周ではなく相手方向への突進にする（対称）。
-           ゲージが戻っても軌道の縮小（shrinkProg）は巻き戻さない */
-        cpu.boostRushT = 0.7;
-        if (cpu.b.tip === "flat"){ cpu.crossX = you.x; cpu.crossY = you.y; }
-        sparks(cpu.x, cpu.y, 6);
-        cpuBoostT = 3.0 + Math.random()*1.0;
-      }
-    }
-
-    P.forEach(function(p, idx){
-      /* 疲れ方は両者まったく同じ計算。
-         自然減衰は全体に約1.5倍速く（2.6→3.9）し、持久のタイプ差は
-         実効持久を 1 に寄せて半分ほどに圧縮する：持久タイプでも
-         ゲージが目に見えて減っていくようにする。衝突ダメージは不変 */
-      var effStamina = 1 + (p.b.stamina - 1) * 0.5;
-      var decay = dt * (3.9 / effStamina) * (0.8 + 0.25 * p.b.move);
-      p.spin -= decay;
+    P.forEach(function(p){
+      /* ゲージの自然な減り：タイプ特性 decay のまま（両者同じ計算）。
+         アタックは速く（約13秒で満タン→0）、防御は普通（約26秒）、
+         スタミナは遅い（約37秒）。CPUは上限が倍率ぶん大きいので、
+         同じ減り方でも少し長持ちする */
+      p.spin -= dt * p.b.decay;
       if (p.spin < 0) p.spin = 0;
       if (p.clashCd > 0) p.clashCd -= dt;
       if (p.kickT > 0) p.kickT -= dt;
-      if (p.jitterT > 0) p.jitterT -= dt;
-      if (p.boostRushT > 0) p.boostRushT -= dt;
-      /* 軌道の縮小はバトル経過時間だけで進める単調進行。
-         ブーストでゲージが回復しても絶対に巻き戻らない */
-      p.shrinkProg = Math.max(p.shrinkProg || 0, Math.min(1, battleT / 20));
       var speedRatio = p.spin / p.max;
-      /* 緩急：モードを切り替え、速度は急に変えず滑らかに追いつかせる（加速・減速感） */
-      p.modeT -= dt;
-      if (p.modeT <= 0) pickMode(p);
-      p.pace += (p.paceT - p.pace) * Math.min(1, dt*2.6);
-      var foe = P[1-idx];
-      /* 底が平らなベイは床を掴んで不意にダートする（激しい動きの源） */
-      if (p.b.move > 1.2 && p.jitterT <= 0 && speedRatio > 0.25){
-        var ja = Math.random()*Math.PI*2;
-        var jolt = r * 0.38 * speedRatio;
-        p.vx += Math.cos(ja)*jolt; p.vy += Math.sin(ja)*jolt;
-        p.jitterT = 0.35 + Math.random()*0.55;
-      }
-      /* 中央に引き寄せつつ周回。尖った底は中心に留まりやすく、平らな底は外へ広がる */
+
       var dx = p.x-cx, dy = p.y-cy, d = Math.hypot(dx,dy)||1;
-      var orbit = (140 * speedRatio + 20) * p.pace;
-      var centerPull = 30 * (1.6 - 0.55 * p.b.move);
-      p.vx += (-dy/d)*orbit*dt*2.2 - (dx/d)*speedRatio*dt*centerPull;
-      p.vy += (dx/d)*orbit*dt*2.2 - (dy/d)*speedRatio*dt*centerPull;
-      /* スタジアムは真ん中に向かってくぼんだお椀型：中心から離れるほど
-         斜面に引かれて中心方向へ戻される（全ベイ共通の地形効果）。
-         効きの主役はバトル経過時間（shrinkProg）で、ゲージ残量の寄与は
-         補助的に弱くしてある。だからブースト連打でゲージを満タンに
-         保ち続けても、中心へ寄る力は時間とともに必ず強まっていく */
-      var bowlK = 0.30 + 1.15 * p.shrinkProg + 0.15 * (1 - speedRatio);
-      p.vx += -(dx/d) * r * bowlK * (d / maxD) * dt;
-      p.vy += -(dy/d) * r * bowlK * (d / maxD) * dt;
-      /* アタック（底が平ら）は実物どおり、中心に留まらずスタジアム全体を
-         大きなループで走り回る：目標半径が外⇔中ほどを行ったり来たりして
-         花びら状の軌道になり、ときどき中心を横切って反対側まで突っ切る。
-         防御・スタミナの周回は今まで通り */
-      if (p.b.tip === "flat"){
-        /* お椀の斜面で、渦の半径は試合経過とともにだんだん短くなる：
-           ループの往復（速い）とは別に、往復の範囲そのもの（外側・内側とも）が
-           ゆっくり縮んでいく。序盤はスタジアムの8割前後の大きなループ、
-           終盤は2〜3割まで縮み、中心付近にいる防御・スタミナへ必ず届く */
-        var shrink = p.shrinkProg;
-        var loopOuter = maxD * (1 - 0.60 * shrink);
-        var loopInner = maxD * (0.42 + (0.15 - 0.42) * shrink);
-        if (p.loopR == null){ p.loopR = loopOuter; p.loopDir = -1; p.crossT = 1.6 + Math.random()*1.8; p.crossX = null; }
-        /* 縮んだ上限より外に目標半径を残さない：時間が進んだ分だけ
-           ループは即座に内側へ締まる（ゲージ回復では戻らない） */
-        if (p.loopR > loopOuter) p.loopR = loopOuter;
-        if (p.crossX != null){
-          /* 突っ切り中：中心の向こう側の目標点へまっすぐ進む */
-          var tx2 = p.crossX - p.x, ty2 = p.crossY - p.y, td = Math.hypot(tx2,ty2)||1;
-          var rush = r * 1.9 * (0.4 + 0.6 * speedRatio);
-          p.vx += (tx2/td)*rush*dt; p.vy += (ty2/td)*rush*dt;
-          if (td < r * 0.08){ p.crossX = null; p.crossT = 2.2 + Math.random()*2.2; p.loopR = loopOuter; p.loopDir = -1; }
-        } else {
-          p.crossT -= dt;
-          if (p.crossT <= 0 && speedRatio > 0.3){
-            /* 中心を横切る：今いる位置の中心対称の点を目標にする */
-            p.crossX = cx + (cx - p.x) * 0.85;
-            p.crossY = cy + (cy - p.y) * 0.85;
-          }
-          /* 目標半径を行ったり来たりさせる。範囲は上の loopOuter/loopInner で
-             時間とともに縮むので、中心へ寄り切らない序盤の動きを保ちつつ
-             終盤は中心付近まで届く */
-          p.loopR += p.loopDir * dt * r * 0.16 * (0.5 + 0.5 * speedRatio);
-          if (p.loopR <= loopInner){ p.loopR = loopInner; p.loopDir = 1; }
-          if (p.loopR >= loopOuter){ p.loopR = loopOuter; p.loopDir = -1; }
-          if (d > p.loopR){
-            var pull = Math.min((d - p.loopR) * 3.0, r * 0.55);
-            p.vx += -(dx/d) * pull * dt;
-            p.vy += -(dy/d) * pull * dt;
-          } else if (d < p.loopR - r * 0.05 && p.boostRushT <= 0){
-            /* 内側に入りすぎたら外へ押し出し、大きなループを保つ。
-               ただしブースト突進の直後だけは外へ押し戻さない：
-               連打しても外周へ戻されず、中心付近の相手へ届く */
-            var push = Math.min((p.loopR - d) * 2.0, r * 0.4);
-            p.vx += (dx/d) * push * dt;
-            p.vy += (dy/d) * push * dt;
-          }
-        }
+      var ux = dx/d, uy = dy/d;            /* 中心から外向き */
+      var tx = -uy*p.dir, ty = ux*p.dir;   /* 周回方向（接線） */
+
+      if (p.kickT > 0){
+        /* 弾かれた直後は勢いのまま飛ぶ：操舵せず軽い減衰だけ */
+        p.vx *= (1 - 0.5*dt); p.vy *= (1 - 0.5*dt);
+      } else {
+        /* 目標速度＝接線方向の周回＋目標半径へ寄せるバネ、へ滑らかに寄せる */
+        var targetR = orbitRadius(p, maxD);
+        var radialV = (targetR - d) * 2.4;
+        var cap = r * 0.5;
+        if (radialV > cap) radialV = cap; else if (radialV < -cap) radialV = -cap;
+        var os = orbitSpeed(p, r, speedRatio);
+        var desVx = tx*os + ux*radialV;
+        var desVy = ty*os + uy*radialV;
+        var steer = Math.min(1, dt*3.2);
+        p.vx += (desVx - p.vx) * steer;
+        p.vy += (desVy - p.vy) * steer;
       }
-      /* 防御（底が尖っている）は実物どおり中心のごく狭い範囲だけ：
-         中心へ戻すバネを強め、外へ出てもすぐ小さな円に戻る */
-      if (p.b.tip === "sharp"){
-        p.vx += -dx * 3.2 * dt;
-        p.vy += -dy * 3.2 * dt;
-      }
-      if (p.mode === "chase" && foe){
-        /* 突進の速さは両方とも同じ */
-        var fx = foe.x-p.x, fy = foe.y-p.y, fd = Math.hypot(fx,fy)||1;
-        var chase = r * 1.5 * speedRatio * (0.5 + 0.5 * p.b.move);
-        p.vx += (fx/fd)*chase*dt; p.vy += (fy/fd)*chase*dt;
-      } else if (p.mode === "drift"){
-        /* 流れるときは軽くブレーキをかけてゆっくりに */
-        p.vx *= (1 - 0.9*dt); p.vy *= (1 - 0.9*dt);
-      }
-      /* 空気抵抗っぽい軽い減衰＋尖った底の安定感：大人しいベイほど勢いが暴れない */
-      var calm = 0.22 + Math.max(0, 1 - p.b.move) * 0.45;
-      p.vx *= (1 - calm*dt); p.vy *= (1 - calm*dt);
-      var v = Math.hypot(p.vx,p.vy), vmax = r*(0.25+0.75*speedRatio) * (0.55 + 0.75*p.pace);
-      if (p.kickT > 0) vmax *= 2.3; /* 弾かれた直後は勢いのまま遠くまで飛ぶ */
+      /* 速度の上限：弾かれた直後だけ大きく許す */
+      var v = Math.hypot(p.vx,p.vy);
+      var vmax = p.kickT > 0 ? r*1.7 : r*1.15;
       if (v > vmax){
         if (p.kickT > 0){ var softCap = vmax + (v - vmax) * Math.max(0, 1 - dt*3); p.vx *= softCap/v; p.vy *= softCap/v; }
         else { p.vx *= vmax/v; p.vy *= vmax/v; }
       }
       p.x += p.vx*dt; p.y += p.vy*dt;
+      /* 壁：スタジアムの縁でバチンと弾かれる（両者同じ） */
       var dd = Math.hypot(p.x-cx, p.y-cy);
-      /* 行動半径：ディフェンスは内側で大人しく、アタックは壁際まで動き回る。
-         ただし弾かれた直後（kickT）は全タイプ壁まで飛ぶ */
-      var roamD = p.kickT > 0 ? maxD : maxD * p.b.roam;
-      if (dd > roamD && p.kickT <= 0){
-        var gx = (p.x-cx)/dd, gy = (p.y-cy)/dd;
-        p.x = cx + gx*roamD; p.y = cy + gy*roamD;
-        var gout = p.vx*gx + p.vy*gy;
-        if (gout > 0){ p.vx -= gout*gx; p.vy -= gout*gy; }
-        dd = roamD;
-      }
       if (dd > maxD){
         var nx = (p.x-cx)/dd, ny = (p.y-cy)/dd;
         p.x = cx + nx*maxD; p.y = cy + ny*maxD;
         var dot = p.vx*nx + p.vy*ny;
         if (dot > 0){
-          /* 壁にもバチンと弾かれる。削れ方は両方とも同じ */
           p.vx -= 1.9*dot*nx; p.vy -= 1.9*dot*ny;
           p.vx *= 0.94; p.vy *= 0.94;
           if (dot > r*0.4){ sparks(p.x, p.y, 6); SFX.clash(false); p.spin -= 1.2; }
@@ -692,30 +578,23 @@
           /* 弾かれた直後は二人とも一瞬ゆっくりに見せてから勢いよく離れる */
           a.clashCd = 0.18; b.clashCd = 0.18;
           a.kickT = 0.5; b.kickT = 0.5;
-          /* 弾かれたアタックはループで戻ってくるが、戻り先は
-             その時点まで縮んだ外側（loopOuter）まで。満タンの半径へ
-             巻き戻すと、終盤でも外周に張り付いてしまう */
-          if (a.b.tip === "flat"){ a.loopR = null; a.loopDir = -1; a.crossX = null; }
-          if (b.b.tip === "flat"){ b.loopR = null; b.loopDir = -1; b.crossX = null; }
           if (hard) slowmoT = 0.13;
-          /* 弾かれた後は少し休んでからまた動き出す（間） */
-          a.mode = "drift"; a.paceT = 0.5; a.modeT = 0.45 + Math.random()*0.3;
-          b.mode = "drift"; b.paceT = 0.5; b.modeT = 0.45 + Math.random()*0.3;
-          /* ダメージ：計算式は両者共通。攻撃タイプ（底が平ら）はタイプ特性として
-             与ダメージが約1.4倍になる。CPUが攻撃タイプのときも同じ倍率で、
-             自分が攻撃タイプのときだけ有利になる非対称にはしない */
-          var atkMultA = (b.b.tip === "flat") ? 1.4 : 1.0; /* b→a への攻撃倍率 */
-          var atkMultB = (a.b.tip === "flat") ? 1.4 : 1.0; /* a→b への攻撃倍率 */
-          var dmgA = (3.5 + Math.random()*4.5) * b.b.power * (hard?1.5:1.1) * atkMultA;
-          var dmgB = (3.5 + Math.random()*4.5) * a.b.power * (hard?1.5:1.1) * atkMultB;
+          /* ダメージ：与える側の atk × 受ける側の guard で決まる（両者共通の式）。
+             攻撃タイプは atk 1.4 で大きく削るが guard は普通（1.0）。
+             スタミナは atk 0.7 で削りは小さいが guard 1.3 で削られやすい。
+             防御は atk 0.7 で削りは小さいが guard 0.6 で硬い。
+             CPUの基礎倍率は与ダメージにも同じだけ乗る */
+          var multA = b.me ? 1 : b.b.cpuMult; /* b→a への倍率 */
+          var multB = a.me ? 1 : a.b.cpuMult; /* a→b への倍率 */
+          var dmgA = (3.5 + Math.random()*4.5) * b.b.atk * (hard?1.5:1.1) * a.b.guard * multA;
+          var dmgB = (3.5 + Math.random()*4.5) * a.b.atk * (hard?1.5:1.1) * b.b.guard * multB;
           a.spin -= dmgA; b.spin -= dmgB;
           sparks((a.x+b.x)/2, (a.y+b.y)/2, hard?14:8);
           ringFx((a.x+b.x)/2, (a.y+b.y)/2);
           SFX.clash(hard);
           if (navigator.vibrate) navigator.vibrate(hard?60:25);
-          /* バースト：基本の閾値・確率は両者同じ。ただし攻撃タイプの
-             強い一撃を受けたときは、タイプ特性として少しバーストしやすくする
-             （攻撃側が自分でもCPUでも同じルール） */
+          /* バースト：強い一撃で、残りゲージが少ない相手がたまに弾け飛ぶ。
+             攻撃タイプの強い一撃を受けたときは少し起きやすい（両者同じルール） */
           if (hard){
             var burstThreshA = (b.b.tip === "flat") ? 0.30 : 0.22;
             var burstProbA   = (b.b.tip === "flat") ? 0.50 : 0.35;
@@ -766,30 +645,6 @@
     setTimeout(function(){ s.remove(); }, 480);
   }
 
-  /* ===== ブースト ===== */
-  /* ブースト：回転が+10戻り、相手へ強く突っ込める。再使用は1.1秒。
-     ダッシュは接線・外向きではなく相手（中心付近）方向への突進として
-     働かせ、アタックは中心横切り（cross）の目標も相手に向け直す。
-     ゲージは回復しても shrinkProg は巻き戻らないので、連打しても
-     外周に留まり続けることはできない */
-  function boost(){
-    if (state !== "battle" || !boostReady) return;
-    var me = P[0], foe = P[1]; if(!me || !foe) return;
-    me.spin = Math.min(me.max, me.spin + 10);
-    var dx = foe.x-me.x, dy = foe.y-me.y, d = Math.hypot(dx,dy)||1;
-    var r = stadium.clientWidth;
-    me.vx += dx/d*r*0.55; me.vy += dy/d*r*0.55;
-    me.kickT = 0.35; me.mode = "chase"; me.paceT = 1.5; me.modeT = 0.6;
-    me.boostRushT = 0.7;
-    if (me.b.tip === "flat"){ me.crossX = foe.x; me.crossY = foe.y; }
-    SFX.boost();
-    sparks(me.x, me.y, 7);
-    boostReady = false; tapBtn.classList.add("cool");
-    setTimeout(function(){ boostReady = true; tapBtn.classList.remove("cool"); }, 1100);
-  }
-  tapBtn.addEventListener("click", boost);
-  stadium.addEventListener("pointerdown", function(){ if (state==="battle") boost(); });
-
   /* ===== ゲージ ===== */
   var fillYou = document.querySelector("#gYou .fill");
   var fillCpu = document.querySelector("#gCpu .fill");
@@ -803,7 +658,6 @@
   function finish(loser, burst){
     state = "end";
     if (raf) cancelAnimationFrame(raf);
-    tapBtn.style.display = "none";
     var winner = (loser === P[0]) ? P[1] : P[0];
     var iWin = winner.me;
 
@@ -864,7 +718,6 @@
   function reset(){
     state = "pick";
     slowmoT = 0;
-    cpuBoostT = 1.0;
     if (raf) cancelAnimationFrame(raf);
     resultEl.style.display = "none";
     gauges.style.display = "none";
@@ -872,7 +725,6 @@
     document.getElementById("pick").style.display = "block";
     shootBtn.style.display = "block";
     shootBtn.disabled = !myBey;
-    tapBtn.style.display = "none";
     hintEl.textContent = myBey ? "したの あかいボタンを おしてね！" : "ベイを えらぶと シュートできるよ";
     if (myBey) preview(); else clearStage();
   }
