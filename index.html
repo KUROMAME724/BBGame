@@ -21,8 +21,9 @@
     }
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  html,body{height:100%;}
+  html,body{height:100%; overscroll-behavior:none;}
   body{
+    position:fixed; inset:0; width:100%;
     margin:0; background:var(--bg); color:var(--ink);
     font-family:"Hiragino Maru Gothic ProN","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
     overflow:hidden; touch-action:manipulation; user-select:none; -webkit-user-select:none;
@@ -75,6 +76,7 @@
     will-change:transform; pointer-events:none; z-index:3;
   }
   .bey svg{width:100%; height:100%; display:block; filter:drop-shadow(0 8px 10px rgba(0,0,0,.45));}
+  .bey.strong svg{filter:drop-shadow(0 0 16px rgba(255,190,0,.95)) drop-shadow(0 8px 10px rgba(0,0,0,.45));}
   .bey.wobble svg{animation:wob .28s ease-in-out infinite alternate;}
   @keyframes wob{from{margin-left:-4px;}to{margin-left:4px;}}
   .bey .piece{position:absolute; inset:0; transition:transform .7s cubic-bezier(.2,.8,.3,1), opacity .7s;}
@@ -143,6 +145,16 @@
   @media (prefers-reduced-motion: reduce){
     .confetti{display:none;}
   }
+  /* 背の低い画面でもスクロールせず収まるように詰める */
+  @media (max-height:620px){
+    #app{gap:6px; padding-top:6px;}
+    #pick .lead{font-size:20px; margin:2px 0 0;}
+    #pick .lead small{font-size:13px;}
+    #beyChoices{margin-top:8px;}
+    .choice{min-height:104px; padding:6px 4px;}
+    .choice svg{width:min(13vw,64px); height:min(13vw,64px);}
+    .bigbtn{min-height:60px;}
+  }
 </style>
 </head>
 <body>
@@ -210,16 +222,28 @@
   }
 
   function beySVG(b, uid){
+    /* まんまるではなく、本物のベイみたいに角のある刃が突き出した形にする。
+       中心(100,100)から半径r・角度degの点を返す */
+    function P(r, deg){
+      var rad = (deg-90)*Math.PI/180;
+      return (100 + r*Math.cos(rad)).toFixed(1) + "," + (100 + r*Math.sin(rad)).toFixed(1);
+    }
     var blades = "";
+    var step = 360 / b.blades;
     for (var i=0;i<b.blades;i++){
-      var a = (360/b.blades)*i;
-      blades += '<path d="M100 100 L100 18 A82 82 0 0 1 152 40 Z" fill="'+b.main+'" stroke="'+b.dark+'" stroke-width="5" transform="rotate('+a+' 100 100)"/>';
+      var a = step*i;
+      /* ねじれた四角い刃：根元→鋭い先端→角→根元 */
+      var pts = [P(56, a-step*0.40), P(98, a-step*0.02), P(88, a+step*0.22), P(60, a+step*0.38)].join(" ");
+      blades += '<polygon points="'+pts+'" fill="'+b.main+'" stroke="'+b.dark+'" stroke-width="5" stroke-linejoin="round"/>';
+      /* 刃と刃のあいだの小さな角（トゲ） */
+      var sa = a + step*0.49;
+      var spts = [P(52, sa-step*0.08), P(74, sa), P(52, sa+step*0.08)].join(" ");
+      blades += '<polygon points="'+spts+'" fill="'+b.dark+'"/>';
     }
     return '' +
     '<svg viewBox="0 0 200 200" aria-hidden="true">' +
-      '<circle cx="100" cy="100" r="96" fill="'+b.dark+'"/>' +
       blades +
-      '<circle cx="100" cy="100" r="58" fill="'+b.main+'" stroke="'+b.dark+'" stroke-width="5"/>' +
+      '<circle cx="100" cy="100" r="56" fill="'+b.main+'" stroke="'+b.dark+'" stroke-width="5"/>' +
       '<circle cx="100" cy="100" r="38" fill="'+b.light+'"/>' +
       '<circle cx="100" cy="100" r="20" fill="#ffffff" stroke="'+b.dark+'" stroke-width="4"/>' +
       '<circle cx="100" cy="100" r="8" fill="'+b.dark+'"/>' +
@@ -289,6 +313,7 @@
   var gauges  = document.getElementById("gauges");
   var resultEl= document.getElementById("result");
   var myBey = null, cpuBey = null;
+  var battleCount = 0, cpuStrong = false; // 3回に1回、相手が強くなる
   var state = "pick"; // pick | count | battle | end
   var P = []; // 物理オブジェクト
   var raf = null, lastT = 0, boostReady = true;
@@ -349,8 +374,19 @@
   shootBtn.addEventListener("click", function(){
     if (!myBey || state==="count" || state==="battle") return;
     audio();
+    battleCount++;
+    cpuStrong = (battleCount % 3 === 0);
     var pool = BEYS.filter(function(b){ return b.id !== myBey.id; });
-    cpuBey = pool[Math.floor(Math.random()*pool.length)];
+    var base = pool[Math.floor(Math.random()*pool.length)];
+    cpuBey = base;
+    if (cpuStrong){
+      /* 3回に1回は強い相手：攻撃と持久を底上げしたコピーで戦う */
+      cpuBey = Object.assign({}, base, {
+        power: base.power * 1.45,
+        stamina: base.stamina * 1.3,
+        move: Math.min(1.9, base.move * 1.15)
+      });
+    }
     startCountdown();
   });
 
@@ -374,6 +410,8 @@
     P.forEach(function(p){
       p.el.style.transform = "translate("+(p.x-size/2)+"px,"+(p.y-size/2)+"px)";
     });
+    if (cpuStrong) P[1].el.classList.add("strong");
+    document.querySelector("#gCpu .who").textContent = cpuStrong ? "👑 つよい あいて" : "あいて 🤖";
     updateGauges();
 
     countEl.style.display = "flex";
@@ -403,7 +441,7 @@
       if (idx===1){ p.vx = -p.vx*0.9; p.vy = -p.vy*0.9; }
     });
     tapBtn.style.display = "block";
-    hintEl.textContent = "みどりのボタンを れんだして パワーアップ！";
+    hintEl.textContent = cpuStrong ? "👑 つよい あいてだ！ れんだで まけないぞ！" : "みどりのボタンを れんだして パワーアップ！";
     boostReady = true; tapBtn.classList.remove("cool");
     lastT = performance.now();
     raf = requestAnimationFrame(tick);
@@ -688,6 +726,7 @@
     if (raf) cancelAnimationFrame(raf);
     resultEl.style.display = "none";
     gauges.style.display = "none";
+    document.querySelector("#gCpu .who").textContent = "あいて 🤖";
     document.getElementById("pick").style.display = "block";
     shootBtn.style.display = "block";
     shootBtn.disabled = !myBey;
@@ -696,6 +735,10 @@
     if (myBey) preview(); else clearStage();
   }
   document.getElementById("againBtn2").addEventListener("click", function(){ audio(); SFX.pick(); reset(); });
+
+  /* スクロールと引っ張り更新を止めて、画面を固定する */
+  document.addEventListener("touchmove", function(e){ e.preventDefault(); }, { passive:false });
+  document.addEventListener("gesturestart", function(e){ e.preventDefault(); });
 
   window.addEventListener("resize", function(){
     fitStadium();
