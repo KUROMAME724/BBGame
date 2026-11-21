@@ -4,10 +4,11 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
 <meta name="color-scheme" content="light dark" />
-<meta name="theme-color" content="#0d1523" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#a9bcd6" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090f19" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black" />
 <meta name="apple-mobile-web-app-title" content="ベイブレード" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%230d1523'/%3E%3Ccircle cx='50' cy='50' r='33' fill='none' stroke='%23c7d2e2' stroke-width='10'/%3E%3Ccircle cx='50' cy='50' r='18' fill='%23ef3f16'/%3E%3Ccircle cx='50' cy='50' r='7' fill='%23f4f8ff'/%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -18,7 +19,9 @@
   :root{
     /* 金属スタジアム×熱い対戦：基調はスチール（青灰の金属）、
        アクセントは熱のオレンジ赤だけに絞る。タイプ色はラベルの差し色のみ */
-    --bg:#bcc9dd; --bg2:#8ea2bf;
+    /* 画面地は単色フラットに統一する（以前の上下グラデーション＋
+       細い斜めラインは、上部が白っぽく霞んで見える原因だった） */
+    --bg:#a9bcd6; --bg2:#8ea2bf;
     --panel:#e9eef6; --panel2:#cfdaeb;
     --ink:#131e30; --sub:#43536c;
     --arena:#22355e; --arena2:#16233f; --ring:#46587a;
@@ -30,7 +33,7 @@
   }
   @media (prefers-color-scheme: dark){
     :root{
-      --bg:#0a101c; --bg2:#060a12;
+      --bg:#090f19; --bg2:#060a12;
       --panel:#182335; --panel2:#101827;
       --ink:#eef3fb; --sub:#93a5c0;
       --arena:#1b2c50; --arena2:#101c36; --ring:#46639f;
@@ -41,20 +44,22 @@
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{height:100%; overscroll-behavior:none;}
+  /* html 自体にも地色を付ける：ステータスバー裏やセーフエリアで
+     白地が透けて上部だけ白く浮くのを防ぐ */
+  html{background:var(--bg);}
   body{
     position:fixed; inset:0; width:100%;
     margin:0; color:var(--ink);
-    /* スチールの地に薄い斜めのスピードラインを敷く */
-    background:
-      repeating-linear-gradient(115deg, rgba(255,255,255,.045) 0 2px, transparent 2px 16px),
-      linear-gradient(165deg, var(--bg), var(--bg2));
+    /* 地はスチール単色フラット。グラデーションと斜めラインは
+       上部の霞みの原因になるので敷かない（質感はカード側で出す） */
+    background:var(--bg);
     font-family:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
     overflow:hidden; touch-action:manipulation; user-select:none; -webkit-user-select:none;
   }
   #app{
     height:100dvh; max-width:1080px; margin:0 auto;
     display:flex; flex-direction:column; align-items:center;
-    padding:10px 12px calc(10px + env(safe-area-inset-bottom)); gap:10px;
+    padding:calc(10px + env(safe-area-inset-top)) 12px calc(10px + env(safe-area-inset-bottom)); gap:10px;
   }
 
   /* ---------- えらぶ画面 ---------- */
@@ -101,10 +106,7 @@
     .choice .ctype.t-def{color:#86efac;}
     .choice .ctype.t-bal{color:#d8b4fe;}
   }
-  .choice .ctip{display:flex; align-items:center; justify-content:center; gap:5px; font-size:clamp(9px,2.6vw,14px); font-weight:700; color:var(--sub); white-space:nowrap; max-width:100%; width:100%; overflow:hidden;}
-  .choice .ctip svg{width:28px; height:21px; flex:none;}
-  .choice .ctip .ctip-txt{flex:none; white-space:nowrap;}
-  .choice svg{width:clamp(56px,15vw,88px); height:clamp(56px,15vw,88px);}
+  .choice svg{width:clamp(68px,18vw,104px); height:clamp(68px,18vw,104px);}
 
   /* ---------- スタジアム ---------- */
   /* 既定は非表示（選択画面）。バトル開始時にJSで display:flex にする */
@@ -232,7 +234,9 @@
   /* ---------- けっか ---------- */
   #result{
     position:fixed; inset:0; display:none; align-items:center; justify-content:center;
-    background:rgba(8,14,30,.45); z-index:20; padding:20px;
+    /* 半透明だと下の淡い地が透けて画面全体が乳白色に霞むので、
+       ほぼ不透明な均一の暗色ベールにしてカードだけを浮かせる */
+    background:rgba(5,9,18,.88); z-index:20; padding:20px;
   }
   #result .card{
     background:linear-gradient(165deg, var(--panel), var(--panel2));
@@ -259,24 +263,22 @@
     #beyChoices{gap:8px;}
     .choice{border-width:2px; padding:8px 2px 6px; border-radius:12px; min-height:118px;}
     .choice .ctype{padding:3px 6px; letter-spacing:.02em;}
-    .choice .ctip{gap:3px;}
-    .choice .ctip svg{width:22px; height:17px;}
   }
   /* やや背の低い画面では9種グリッドを少し詰める（ステージが無いので以前より緩めでよい） */
   @media (max-height:840px){
     .choice{min-height:112px; padding:8px 2px 6px; gap:4px;}
-    .choice svg{width:clamp(48px,12vw,68px); height:clamp(48px,12vw,68px);}
+    .choice svg{width:clamp(56px,14vw,80px); height:clamp(56px,14vw,80px);}
     #pick .lead{margin:2px 0 0;}
     #beyChoices{margin-top:10px;}
   }
   /* 背の低い画面でもスクロールせず収まるように詰める */
   @media (max-height:620px){
-    #app{gap:6px; padding-top:6px;}
+    #app{gap:6px; padding-top:calc(6px + env(safe-area-inset-top));}
     #pick .lead{font-size:26px; margin:2px 0 0;}
     #pick .lead small{font-size:13px;}
     #beyChoices{margin-top:8px; gap:8px;}
     .choice{min-height:96px; padding:6px 2px; gap:3px;}
-    .choice svg{width:clamp(40px,11vw,56px); height:clamp(40px,11vw,56px);}
+    .choice svg{width:clamp(48px,13vw,64px); height:clamp(48px,13vw,64px);}
     .bigbtn{min-height:60px;}
     /* 低い画面でも主アクションの大きさは死守する */
     #shootBtn{min-height:78px; font-size:30px;}
@@ -313,7 +315,7 @@
 <div id="result">
   <div class="card">
     <div class="big" id="resBig">かった！！</div>
-    <div class="sub" id="resSub">バーストフィニッシュ！</div>
+    <div class="sub" id="resSub">あいてが バラバラに なった！</div>
     <button class="bigbtn" id="againBtn2">もういちど たたかう</button>
   </div>
 </div>
@@ -344,47 +346,38 @@
      speedMul はタイプ共通の周回スピードへの倍率（個性付け専用、既定1） */
   /* 並び順はタイプごとにまとめる（選択画面でタイプで選びやすく） */
   var BEYS = [
-    { id:"red",   name:"ほのおドラゴン", type:"アタック",     tip:"flat",  tipLabel:"そこ：たいら",   main:"#ef4444", dark:"#991b1b", light:"#fca5a5", blades:3, atk:1.3,  decay:5.0, guard:1.0,  speedMul:1.0 },
+    { id:"red",   name:"ほのおドラゴン", type:"アタック",     tip:"flat", main:"#ef4444", dark:"#991b1b", light:"#fca5a5", blades:3, atk:1.3,  decay:5.0, guard:1.0,  speedMul:1.0 },
     /* かみなりウルフ：素早い攻撃。周回が速く当たる回数は多いが、
        一撃はアタック内でやや軽く、decayも速めで息切れしやすい */
-    { id:"yellow", name:"かみなりウルフ", type:"アタック",     tip:"flat",  tipLabel:"そこ：たいら",   main:"#eab308", dark:"#854d0e", light:"#fef08a", blades:5, atk:1.15, decay:5.6, guard:1.05, speedMul:1.25 },
+    { id:"yellow", name:"かみなりウルフ", type:"アタック",     tip:"flat", main:"#eab308", dark:"#854d0e", light:"#fef08a", blades:5, atk:1.15, decay:5.6, guard:1.05, speedMul:1.25 },
     /* メタルライノ：重い一撃。atkは全ベイ最高クラスで少し硬いが、
        decayは最速クラスで長くは回れない。周回は重くゆっくり */
-    { id:"silver", name:"メタルライノ",   type:"アタック",     tip:"flat",  tipLabel:"そこ：たいら",   main:"#9ca3af", dark:"#374151", light:"#e5e7eb", blades:2, atk:1.55, decay:6.0, guard:0.85, speedMul:0.9 },
-    { id:"blue",  name:"うみウェーブ",   type:"スタミナ",     tip:"round", tipLabel:"そこ：まるい",   main:"#3b82f6", dark:"#1e3a8a", light:"#93c5fd", blades:4, atk:0.7,  decay:1.8, guard:1.3,  speedMul:1.0 },
-    /* ゆきペンギン：超持久。decayは全ベイ最遅クラスだが、
-       atkは低く、guardはスタミナ標準どおり受けやすい */
-    { id:"yuki",   name:"ゆきペンギン",   type:"スタミナ",     tip:"round", tipLabel:"そこ：まるい",   main:"#7dd3fc", dark:"#0369a1", light:"#f0f9ff", blades:8, atk:0.6,  decay:1.2, guard:1.3,  speedMul:0.9 },
-    { id:"green", name:"もりタートル",   type:"ディフェンス", tip:"sharp", tipLabel:"そこ：とがった", main:"#22c55e", dark:"#14532d", light:"#86efac", blades:6, atk:0.9,  decay:2.6, guard:0.6,  speedMul:1.0 },
-    /* いわゴーレム：超硬い。guardは全ベイ最良でほとんど削られないが、
-       atkは低め。decayは普通〜遅めで粘る */
-    { id:"iwa",    name:"いわゴーレム",   type:"ディフェンス", tip:"sharp", tipLabel:"そこ：とがった", main:"#b45309", dark:"#78350f", light:"#fcd9a8", blades:4, atk:0.65, decay:2.4, guard:0.4,  speedMul:0.9 },
+    { id:"silver", name:"メタルライノ",   type:"アタック",     tip:"flat", main:"#9ca3af", dark:"#374151", light:"#e5e7eb", blades:2, atk:1.55, decay:6.0, guard:0.85, speedMul:0.9 },
+    { id:"blue",  name:"うみウェーブ",   type:"スタミナ",     tip:"round",main:"#3b82f6", dark:"#1e3a8a", light:"#93c5fd", blades:4, atk:0.7,  decay:1.8, guard:1.3,  speedMul:1.0 },
+    /* ゆきペンギン：超持久。decayは全ベイ最遅で、周回も全ベイ最遅
+       （speedMul 0.6）。遅く回ることで正面衝突の回数と激しさが落ち、
+       中心でジッと粘り続けられるのが本体。atkは低め、guardは
+       スタミナ標準どおり受けやすい。以前は速く回っていたため
+       いわゴーレムに正面から削り切られていたが、この組み合わせで
+       ゴーレム相手でも粘り勝ちできるようになった（要シミュレーション確認済み） */
+    { id:"yuki",   name:"ゆきペンギン",   type:"スタミナ",     tip:"round",main:"#7dd3fc", dark:"#0369a1", light:"#f0f9ff", blades:8, atk:0.65, decay:1.2, guard:1.3,  speedMul:0.6 },
+    { id:"green", name:"もりタートル",   type:"ディフェンス", tip:"sharp",main:"#22c55e", dark:"#14532d", light:"#86efac", blades:6, atk:0.9,  decay:2.6, guard:0.6,  speedMul:1.0 },
+    /* いわゴーレム：超硬い。guardは全ベイ最良（0.4）でほとんど削られず、
+       攻撃タイプの火力をいなして勝つ。その代わり atk は全ベイ最低で
+       持久タイプを倒し切れず、decay も普通〜やや速め（タートルより速い）
+       まで戻したので、持久相手には粘り負ける（相性サイクル
+       「攻撃＞持久＞防御＞攻撃」を成立させるための調整。
+       以前は decay が防御標準より遅く atk も効きすぎていて、
+       持久が全く勝てなかった） */
+    { id:"iwa",    name:"いわゴーレム",   type:"ディフェンス", tip:"sharp",main:"#b45309", dark:"#78350f", light:"#fcd9a8", blades:4, atk:0.55, decay:3.6, guard:0.4,  speedMul:0.9 },
     /* ほしのユニコーン：バランス内で持久寄り。ステータスは中庸
        （atk約1.0／guard標準1.0）で、decayだけやや遅め */
-    { id:"hoshi",  name:"ほしのユニコーン", type:"バランス",     tip:"balance", tipLabel:"そこ：なだらか", main:"#a855f7", dark:"#581c87", light:"#e9d5ff", blades:7, atk:1.0,  decay:2.2, guard:1.0,  speedMul:1.05 },
+    { id:"hoshi",  name:"ほしのユニコーン", type:"バランス",     tip:"balance",main:"#a855f7", dark:"#581c87", light:"#e9d5ff", blades:7, atk:1.0,  decay:2.2, guard:1.0,  speedMul:1.05 },
     /* はがねカブト：バランス内でカウンター寄り。atkはやや高め（約1.1）、
        guardは標準よりほんの少しだけ良く、decayは普通 */
-    { id:"kabuto", name:"はがねカブト",   type:"バランス",     tip:"balance", tipLabel:"そこ：なだらか", main:"#2b2b2b", dark:"#92600a", light:"#facc15", blades:6, atk:1.1,  decay:2.6, guard:0.9,  speedMul:1.05 }
+    { id:"kabuto", name:"はがねカブト",   type:"バランス",     tip:"balance",main:"#2b2b2b", dark:"#92600a", light:"#facc15", blades:6, atk:1.1,  decay:2.6, guard:0.9,  speedMul:1.05 }
   ];
   /* ゲージ満タン量（プレイヤー側）。CPU側は基礎倍率ぶんだけ変わる（通常戦は1.25倍、ボス戦は合計で約1.48倍） */
-
-  /* 底の形の横から見た図（選択カード用） */
-  function tipSVG(b){
-    var tip = "";
-    if (b.tip === "flat"){
-      tip = '<rect x="6" y="13" width="28" height="5" rx="1.5" fill="'+b.main+'" stroke="'+b.dark+'" stroke-width="2"/>';
-    } else if (b.tip === "sharp"){
-      tip = '<path d="M8 13 L32 13 L20 19 Z" fill="'+b.main+'" stroke="'+b.dark+'" stroke-width="2" stroke-linejoin="round"/>';
-    } else if (b.tip === "balance"){
-      /* バランスの底：たいらと とがった の中間の、なだらかな台形 */
-      tip = '<path d="M7 13 L33 13 L27 18.5 L13 18.5 Z" fill="'+b.main+'" stroke="'+b.dark+'" stroke-width="2" stroke-linejoin="round"/>';
-    } else {
-      tip = '<path d="M8 13 L32 13 A12 6 0 0 1 8 13 Z" fill="'+b.main+'" stroke="'+b.dark+'" stroke-width="2" stroke-linejoin="round"/>';
-    }
-    return '<svg viewBox="0 0 40 20" aria-hidden="true">' +
-      '<rect x="15" y="1" width="10" height="8" rx="2" fill="'+b.light+'" stroke="'+b.dark+'" stroke-width="2"/>' +
-      '<rect x="9" y="8" width="22" height="5" rx="2" fill="'+b.dark+'"/>' + tip + '</svg>';
-  }
 
   function beySVG(b){
     /* ほぼ円の形：回っているところを上から見ると円っぽく見えるので、
@@ -522,7 +515,7 @@
      一定時間だけ自分のゲージの減りを遅くする。回復はしない。
      効くのは「自然減衰」と「ぶつかったときに受けるダメージ」の両方
      （以前は自然減衰だけだったので、衝突が主因のバトルでは体感できなかった）。
-     gutsLevel 0〜1（減衰カット率 = level × 0.9、被ダメージ軽減 = level × 0.6）、
+     gutsLevel 0〜1（減衰カット率 = level × 0.9、被ダメージ軽減 = level × 0.2）、
      gutsT は残り時間 */
   var gutsLevel = 0, gutsT = 0;
   var gutsBtn = document.getElementById("gutsBtn");
@@ -544,7 +537,7 @@
     btn.className = "choice"; btn.type = "button";
     btn.setAttribute("aria-label", b.name);
     var cat = b.tip === "flat" ? "t-atk" : (b.tip === "round" ? "t-sta" : (b.tip === "balance" ? "t-bal" : "t-def"));
-    btn.innerHTML = beySVG(b) + '<span class="cname" data-len="'+b.name.length+'">'+b.name+'</span><span class="ctype '+cat+'">'+b.type+'</span><span class="ctip">'+tipSVG(b)+'<span class="ctip-txt">'+b.tipLabel+'</span></span>';
+    btn.innerHTML = beySVG(b) + '<span class="cname" data-len="'+b.name.length+'">'+b.name+'</span><span class="ctype '+cat+'">'+b.type+'</span>';
     btn.addEventListener("click", function(){
       audio(); SFX.pick();
       myBey = b;
@@ -582,7 +575,6 @@
     for (var i=0;i<cards.length;i++){
       fitOneText(cards[i].querySelector(".cname"), 9);
       fitOneText(cards[i].querySelector(".ctype"), 8);
-      fitOneText(cards[i].querySelector(".ctip"), 8);
     }
   }
   requestAnimationFrame(fitCardTexts);
@@ -632,7 +624,7 @@
        残り85%以上 … ほぼ効果なし（strength 0）
        残り30%以下 … 最大（strength 1）
      連続押しで level が重なるが上限1で頭打ち（減衰カット最大90%、
-     被ダメージ軽減最大60%）。持続は約4.5秒で、押すたびに残り時間が戻る。
+     被ダメージ軽減最大20%）。持続は約4.5秒で、押すたびに残り時間が戻る。
      ゲージ自体は回復しない */
   var gYouEl = document.getElementById("gYou");
   gutsBtn.addEventListener("click", function(){
@@ -1094,11 +1086,15 @@
           var multB = a.me ? 1 : a.b.cpuMult; /* a→b への倍率 */
           var dmgA = (3.5 + Math.random()*4.5) * b.b.atk * (hard?1.5:1.1) * a.b.guard * multA;
           var dmgB = (3.5 + Math.random()*4.5) * a.b.atk * (hard?1.5:1.1) * b.b.guard * multB;
-          /* ねばり中はプレイヤーの受けるダメージも最大60%軽減される。
-             ゲージ減少の主因は衝突なので、ここに効かせないと体感できない */
+          /* ねばり中はプレイヤーの受けるダメージも軽減される（最大20%）。
+             ゲージ減少の主因は衝突なので、ここに効かせないと体感できない。
+             軽減率は以前60%だったが、ペンギン対ゴーレムで「ねばる」を
+             使うと約9割勝ててしまい圧勝すぎたため20%まで下げた
+             （シミュレーション検証：同対戦のねばる勝率 約74%、
+             ねばる無しは約3割・接戦のまま不変） */
           if (gutsT > 0){
-            if (a.me) dmgA *= (1 - 0.6 * gutsLevel);
-            if (b.me) dmgB *= (1 - 0.6 * gutsLevel);
+            if (a.me) dmgA *= (1 - 0.2 * gutsLevel);
+            if (b.me) dmgB *= (1 - 0.2 * gutsLevel);
           }
           a.spin -= dmgA; b.spin -= dmgB;
           /* ===== 手応え：ヒットストップ＋震え＋ヒットマーク＋画面振動 =====
@@ -1264,8 +1260,8 @@
       rb.classList.toggle("win", iWin);
       document.getElementById("resSub").classList.toggle("burst", !!burst);
       document.getElementById("resSub").textContent =
-        burst ? (iWin ? (cpuStrong ? "ボスに バースト勝ち！ ほんものだ！" : "バースト勝ち！ やったね！") : "バーストで まけた。つぎは かてるよ！")
-              : (iWin ? (cpuStrong ? "ボスに スピン勝ち！ すごい！" : "スピン勝ち！ かいてんが のこった！") : "とまって まけた。つぎは かてるよ！");
+        burst ? (iWin ? "あいてが バラバラに なった！" : "バラバラに なっちゃった…")
+              : (iWin ? "あいてが とまった！" : "とまっちゃった…");
       resultEl.style.display = "flex";
       if (iWin){ SFX.win(); confetti(); } else { SFX.lose(); }
     }, burst ? 900 : 1100);
