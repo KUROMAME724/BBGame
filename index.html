@@ -229,30 +229,31 @@
   }
 
   function beySVG(b, uid){
-    /* まんまるではなく、本物のベイみたいに角のある刃が突き出した形にする。
+    /* 「丸い方が好き」との希望で、角ばった刃やトゲはやめる。
+       刃の数だけ丸いふくらみ（コブ）を並べた、まんまるに近い形にする。
+       コブの数でタイプの違いは残しつつ、輪郭は全部なめらかな弧だけにする。
        中心(100,100)から半径r・角度degの点を返す */
-    function P(r, deg){
+    function C(r, deg){
       var rad = (deg-90)*Math.PI/180;
-      return (100 + r*Math.cos(rad)).toFixed(1) + "," + (100 + r*Math.sin(rad)).toFixed(1);
+      return [100 + r*Math.cos(rad), 100 + r*Math.sin(rad)];
     }
-    var blades = "";
+    var lobes = "";
     var step = 360 / b.blades;
+    /* 刃が多いほどコブを小さく・外寄りにして、全体の丸さが揃うようにする */
+    var lobeR = b.blades <= 3 ? 34 : (b.blades === 4 ? 30 : 24);
+    var lobeDist = b.blades <= 3 ? 52 : (b.blades === 4 ? 56 : 60);
     for (var i=0;i<b.blades;i++){
-      var a = step*i;
-      /* ねじれた四角い刃：根元→鋭い先端→角→根元 */
-      var pts = [P(56, a-step*0.40), P(98, a-step*0.02), P(88, a+step*0.22), P(60, a+step*0.38)].join(" ");
-      blades += '<polygon points="'+pts+'" fill="'+b.main+'" stroke="'+b.dark+'" stroke-width="5" stroke-linejoin="round"/>';
-      /* 刃と刃のあいだの小さな角（トゲ） */
-      var sa = a + step*0.49;
-      var spts = [P(52, sa-step*0.08), P(74, sa), P(52, sa+step*0.08)].join(" ");
-      blades += '<polygon points="'+spts+'" fill="'+b.dark+'"/>';
+      var pt = C(lobeDist, step*i);
+      lobes += '<circle cx="'+pt[0].toFixed(1)+'" cy="'+pt[1].toFixed(1)+'" r="'+lobeR+'" fill="'+b.main+'" stroke="'+b.dark+'" stroke-width="5"/>';
     }
     return '' +
     '<svg viewBox="0 0 200 200" aria-hidden="true">' +
-      blades +
-      '<circle cx="100" cy="100" r="56" fill="'+b.main+'" stroke="'+b.dark+'" stroke-width="5"/>' +
-      '<circle cx="100" cy="100" r="38" fill="'+b.light+'"/>' +
-      '<circle cx="100" cy="100" r="20" fill="#ffffff" stroke="'+b.dark+'" stroke-width="4"/>' +
+      /* コブとコブのすき間を埋める土台の丸：輪郭がギザギザにならないように */
+      '<circle cx="100" cy="100" r="66" fill="'+b.main+'"/>' +
+      lobes +
+      '<circle cx="100" cy="100" r="58" fill="'+b.main+'" stroke="'+b.dark+'" stroke-width="5"/>' +
+      '<circle cx="100" cy="100" r="40" fill="'+b.light+'"/>' +
+      '<circle cx="100" cy="100" r="21" fill="#ffffff" stroke="'+b.dark+'" stroke-width="4"/>' +
       '<circle cx="100" cy="100" r="8" fill="'+b.dark+'"/>' +
       '<circle cx="76" cy="72" r="9" fill="rgba(255,255,255,.55)"/>' +
     '</svg>';
