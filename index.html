@@ -4,28 +4,51 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
 <meta name="color-scheme" content="light dark" />
-<link rel="icon" href="data:," />
+<meta name="theme-color" content="#0d1523" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="ベイブレード" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%230d1523'/%3E%3Ccircle cx='50' cy='50' r='33' fill='none' stroke='%23c7d2e2' stroke-width='10'/%3E%3Ccircle cx='50' cy='50' r='18' fill='%23ef3f16'/%3E%3Ccircle cx='50' cy='50' r='7' fill='%23f4f8ff'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Zen+Kaku+Gothic+New:wght@700;900&display=swap" rel="stylesheet" />
 <title>ベイブレード</title>
 <style>
   :root{
-    --bg:#eef4ff; --panel:#ffffff; --ink:#16213c; --sub:#5a6a8c;
-    --arena:#22355e; --arena2:#16233f; --ring:#3f5c96;
-    --accent:#ffcf3f; --go:#ff4d4d;
-    --card-border:#d7e0f2;
+    /* 金属スタジアム×熱い対戦：基調はスチール（青灰の金属）、
+       アクセントは熱のオレンジ赤だけに絞る。タイプ色はラベルの差し色のみ */
+    --bg:#bcc9dd; --bg2:#8ea2bf;
+    --panel:#e9eef6; --panel2:#cfdaeb;
+    --ink:#131e30; --sub:#43536c;
+    --arena:#22355e; --arena2:#16233f; --ring:#46587a;
+    --accent:#ef3f16; --accent-hi:#ff8a3c; --accent-dk:#b91f06;
+    --gold:#b97a08;
+    --line:#8b9eb9;
+    --card-border:#8498b3;
+    --disp:"Anton","Zen Kaku Gothic New","Hiragino Kaku Gothic ProN",sans-serif;
   }
   @media (prefers-color-scheme: dark){
     :root{
-      --bg:#0d1526; --panel:#182540; --ink:#f2f6ff; --sub:#a9b8d8;
+      --bg:#0a101c; --bg2:#060a12;
+      --panel:#182335; --panel2:#101827;
+      --ink:#eef3fb; --sub:#93a5c0;
       --arena:#1b2c50; --arena2:#101c36; --ring:#46639f;
-      --card-border:#2c3f68;
+      --gold:#f5b942;
+      --line:#2e3e56;
+      --card-border:#2e3e56;
     }
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{height:100%; overscroll-behavior:none;}
   body{
     position:fixed; inset:0; width:100%;
-    margin:0; background:var(--bg); color:var(--ink);
-    font-family:"Hiragino Maru Gothic ProN","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+    margin:0; color:var(--ink);
+    /* スチールの地に薄い斜めのスピードラインを敷く */
+    background:
+      repeating-linear-gradient(115deg, rgba(255,255,255,.045) 0 2px, transparent 2px 16px),
+      linear-gradient(165deg, var(--bg), var(--bg2));
+    font-family:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
     overflow:hidden; touch-action:manipulation; user-select:none; -webkit-user-select:none;
   }
   #app{
@@ -35,33 +58,63 @@
   }
 
   /* ---------- えらぶ画面 ---------- */
-  #pick{width:100%; text-align:center;}
-  #pick .lead{font-size:clamp(22px,5vw,32px); font-weight:900; margin:6px 0 2px;}
-  #pick .lead small{display:block; font-size:clamp(14px,3.4vw,18px); color:var(--sub); font-weight:700; margin-top:4px;}
-  #beyChoices{display:flex; gap:10px; justify-content:center; margin-top:12px; flex-wrap:nowrap; width:100%;}
+  /* 選択画面ではスタジアムを出さない：空いた高さを全部グリッドに使う */
+  #pick{width:100%; text-align:center; flex:1; display:flex; flex-direction:column; min-height:0;}
+  /* 見出しはディスプレイ書体で大きく。「えらべ！」だけ熱色で感情を付ける */
+  #pick .lead{font-family:var(--disp); font-size:clamp(32px,7.2vw,50px); font-weight:900; letter-spacing:.03em; margin:6px 0 2px; text-shadow:0 3px 0 rgba(10,18,34,.16); max-width:100%; overflow:hidden;}
+  #pick .lead em{font-style:normal; color:var(--accent); font-size:1.14em; text-shadow:0 3px 0 rgba(120,15,0,.28);}
+  #pick .lead small{display:block; font-family:"Zen Kaku Gothic New",sans-serif; font-size:clamp(14px,3.6vw,19px); color:var(--sub); font-weight:700; letter-spacing:.14em; margin-top:5px; text-shadow:none;}
+  /* 9種を3×3グリッドで大きく並べる：ステージが無いぶんカードも文字も拡大 */
+  #beyChoices{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); grid-template-rows:repeat(3,minmax(0,1fr)); gap:12px; margin:14px auto 0; width:100%; max-width:880px; flex:1; min-height:0;}
+  /* カードは金属プレート：角は締めて、上端に光のエッジ、下端に影の段差 */
   .choice{
-    border:4px solid var(--card-border); background:var(--panel); border-radius:24px;
-    flex:1 1 0; min-width:0; max-width:170px; min-height:148px; padding:10px 4px 8px; cursor:pointer;
-    display:flex; flex-direction:column; align-items:center; gap:6px;
+    position:relative; overflow:hidden;
+    border:2px solid var(--card-border);
+    background:linear-gradient(165deg, var(--panel) 0%, var(--panel2) 100%);
+    border-radius:14px;
+    min-width:0; min-height:132px; padding:12px 6px 10px; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
     font-family:inherit; color:var(--ink);
+    box-shadow:0 4px 0 rgba(10,18,34,.28), 0 10px 20px rgba(10,18,34,.14), inset 0 1px 0 rgba(255,255,255,.4);
     transition:transform .12s ease, border-color .12s ease, box-shadow .12s ease;
   }
+  .choice::before{content:""; position:absolute; top:0; left:10%; right:10%; height:3px; background:linear-gradient(90deg, transparent, rgba(255,255,255,.65), transparent);}
   .choice:active{transform:scale(.95);}
-  .choice.sel{border-color:var(--accent); box-shadow:0 0 0 4px rgba(255,207,63,.35), 0 10px 24px rgba(0,0,0,.18); transform:scale(1.04);}
-  /* カード幅に必ず収まる文字サイズにする（名前が枠にはみ出して重なるのを防ぐ） */
-  .choice .cname{font-size:clamp(11px,3.1vw,20px); font-weight:900; white-space:nowrap; max-width:100%;}
-  .choice .ctype{font-size:clamp(10px,2.6vw,14px); font-weight:800; color:var(--sub); white-space:nowrap; max-width:100%;}
-  .choice .ctip{display:flex; align-items:center; gap:5px; font-size:clamp(9px,2.4vw,12px); font-weight:800; color:var(--sub); white-space:nowrap; max-width:100%;}
-  .choice .ctip svg{width:26px; height:20px; flex:none;}
-  .choice svg{width:min(17vw,96px); height:min(17vw,96px);}
+  .choice.sel{border-color:var(--accent); box-shadow:0 0 0 3px var(--accent), 0 0 0 6px rgba(239,63,22,.22), 0 12px 26px rgba(10,18,34,.25); transform:scale(1.04);}
+  /* カード幅に必ず収まる文字サイズにする（名前が枠にはみ出して重なるのを防ぐ）。
+     基本は従来サイズ、長い名前ほど段階的に小さくする（data-len＝文字数）。
+     さらにJSの実測フィットが最終保証として効くので、どの幅でも見切れない */
+  .choice .cname{font-family:var(--disp); font-size:clamp(13px,4.3vw,25px); font-weight:900; white-space:nowrap; max-width:100%; width:100%; display:block; text-align:center; overflow:hidden; letter-spacing:0;}
+  .choice .cname[data-len="7"]{font-size:clamp(12px,3.9vw,25px);}
+  .choice .cname[data-len="8"]{font-size:clamp(11px,3.35vw,25px);}
+  .choice .cname[data-len="9"]{font-size:clamp(10px,3vw,23px);}
+  /* タイプラベルは4タイプで色分け（差し色はここだけに限定する）：
+     アタック=赤／スタミナ=青／ディフェンス=緑／バランス=紫 */
+  .choice .ctype{font-size:clamp(11px,3vw,15px); font-weight:900; color:var(--sub); white-space:nowrap; max-width:100%; overflow:hidden; padding:3px 8px; border-radius:6px; letter-spacing:.04em;}
+  .choice .ctype.t-atk{background:rgba(239,68,68,.16); color:#c81e1e;}
+  .choice .ctype.t-sta{background:rgba(59,130,246,.16); color:#1d4ed8;}
+  .choice .ctype.t-def{background:rgba(34,197,94,.18); color:#15803d;}
+  .choice .ctype.t-bal{background:rgba(168,85,247,.16); color:#7e22ce;}
+  @media (prefers-color-scheme: dark){
+    .choice .ctype.t-atk{color:#fca5a5;}
+    .choice .ctype.t-sta{color:#93c5fd;}
+    .choice .ctype.t-def{color:#86efac;}
+    .choice .ctype.t-bal{color:#d8b4fe;}
+  }
+  .choice .ctip{display:flex; align-items:center; justify-content:center; gap:5px; font-size:clamp(9px,2.6vw,14px); font-weight:700; color:var(--sub); white-space:nowrap; max-width:100%; width:100%; overflow:hidden;}
+  .choice .ctip svg{width:28px; height:21px; flex:none;}
+  .choice .ctip .ctip-txt{flex:none; white-space:nowrap;}
+  .choice svg{width:clamp(56px,15vw,88px); height:clamp(56px,15vw,88px);}
 
   /* ---------- スタジアム ---------- */
-  #stageWrap{flex:1; width:100%; display:flex; align-items:center; justify-content:center; min-height:0;}
+  /* 既定は非表示（選択画面）。バトル開始時にJSで display:flex にする */
+  #stageWrap{flex:1; width:100%; display:none; align-items:center; justify-content:center; min-height:0;}
   #stadium{
     position:relative; border-radius:50%; flex:none;
     width:280px; height:280px;
     background:radial-gradient(circle at 50% 42%, var(--arena) 0 55%, var(--arena2) 78%, #0a1226 100%);
-    box-shadow:0 18px 40px rgba(10,20,50,.35), inset 0 0 0 10px var(--ring), inset 0 0 60px rgba(0,0,0,.45);
+    /* 外周は金属リムの段重ね（明→暗→明）でスタジアムの縁を表現する */
+    box-shadow:0 24px 48px rgba(5,10,22,.5), 0 0 0 6px #3b4c6b, 0 0 0 11px #131e31, 0 0 0 14px #5a6f92, inset 0 0 0 10px var(--ring), inset 0 0 60px rgba(0,0,0,.45);
     overflow:hidden; touch-action:none;
   }
   #stadium::before{
@@ -117,37 +170,53 @@
   }
   #count{
     position:absolute; inset:0; display:none; align-items:center; justify-content:center;
-    font-size:clamp(80px,22vw,170px); font-weight:900; color:#fff; z-index:8;
-    text-shadow:0 6px 0 rgba(0,0,0,.25), 0 0 44px rgba(255,207,63,.8); pointer-events:none;
+    font-family:var(--disp);
+    font-size:clamp(84px,23vw,180px); font-weight:900; color:#fff; z-index:8;
+    -webkit-text-stroke:3px rgba(185,31,6,.85);
+    text-shadow:0 7px 0 rgba(120,10,0,.5), 0 0 48px rgba(255,140,40,.9); pointer-events:none;
     text-align:center; line-height:1.05;
   }
   #count.pop{animation:cpop .5s ease;}
-  @keyframes cpop{0%{transform:scale(1.7);}100%{transform:scale(1);}}
+  @keyframes cpop{0%{transform:scale(1.7) rotate(-5deg);}100%{transform:scale(1) rotate(-3deg);}}
 
   /* ---------- たいりょくゲージ ---------- */
   #gauges{width:min(92vw,720px); display:none; gap:10px;}
   .gauge{flex:1;}
-  .gauge .bar{height:22px; border-radius:999px; background:rgba(120,135,170,.3); overflow:hidden; border:3px solid var(--panel); box-shadow:0 2px 8px rgba(0,0,0,.15);}
-  .gauge .fill{height:100%; width:100%; border-radius:999px; transition:width .18s linear;}
-  #gYou .fill{background:linear-gradient(90deg,#38bdf8,#2563eb);}
-  #gCpu .fill{background:linear-gradient(90deg,#fda4af,#e11d48);}
-  .gauge .who{font-size:15px; font-weight:900; text-align:center; margin-top:3px;}
+  /* ゲージは金属の溝にエネルギーが流れる見た目：暗い溝＋斜めストライプの充填 */
+  .gauge .bar{height:24px; border-radius:7px; background:#0b1322; overflow:hidden; border:2px solid var(--line); box-shadow:inset 0 3px 7px rgba(0,0,0,.65), 0 2px 6px rgba(0,0,0,.2);}
+  .gauge .fill{height:100%; width:100%; transition:width .18s linear;}
+  #gYou .fill{background-image:repeating-linear-gradient(115deg, rgba(255,255,255,.22) 0 8px, transparent 8px 16px), linear-gradient(90deg,#4cc9ff,#2563eb);}
+  #gCpu .fill{background-image:repeating-linear-gradient(115deg, rgba(255,255,255,.22) 0 8px, transparent 8px 16px), linear-gradient(90deg,#ffb03a,#e63312);}
+  .gauge .who{font-family:var(--disp); font-size:17px; font-weight:900; letter-spacing:.08em; text-align:center; margin-top:4px; white-space:nowrap; overflow:hidden; max-width:100%;}
+  .gauge .who.you{color:#1d6fd1;}
+  .gauge .who.cpu{color:#d93a2b;}
+  .gauge .who.boss{color:var(--gold);}
+  @media (prefers-color-scheme: dark){
+    .gauge .who.you{color:#6fc3ff;}
+    .gauge .who.cpu{color:#ff8a75;}
+  }
 
   /* ---------- ボタン ---------- */
   #controls{width:min(92vw,720px); display:flex; flex-direction:column; gap:10px; align-items:stretch;}
   .bigbtn{
-    border:none; cursor:pointer; font-family:inherit; font-weight:900; color:#fff;
-    border-radius:999px; min-height:76px; font-size:clamp(26px,6.5vw,36px);
-    letter-spacing:.04em; padding:10px 18px;
-    box-shadow:0 8px 0 rgba(0,0,0,.22), 0 14px 28px rgba(0,0,0,.2);
+    border:none; cursor:pointer; font-family:var(--disp); font-weight:900; color:#fff;
+    border-radius:16px; min-height:76px; font-size:clamp(26px,6.5vw,36px);
+    letter-spacing:.06em; padding:10px 18px;
+    box-shadow:0 7px 0 rgba(8,12,22,.38), 0 16px 30px rgba(8,12,22,.28);
     transition:transform .08s ease, box-shadow .08s ease, filter .15s;
   }
-  .bigbtn:active{transform:translateY(5px); box-shadow:0 3px 0 rgba(0,0,0,.22);}
-  #shootBtn{background:linear-gradient(180deg,#ff7a59,#f43f3f);}
-  #shootBtn:disabled{filter:grayscale(.6) brightness(.8);}
+  .bigbtn:active{transform:translateY(5px); box-shadow:0 2px 0 rgba(8,12,22,.38);}
+  .btnIn{display:inline-block; transform:skewX(-6deg);}
+  /* 主アクションは画面で一番大きく・一番熱く（階層はサイズで表現する） */
+  #shootBtn{
+    min-height:98px; font-size:clamp(34px,8.5vw,48px); letter-spacing:.08em;
+    text-shadow:0 3px 0 rgba(120,15,0,.45);
+    background-image:linear-gradient(180deg, rgba(255,255,255,.38), rgba(255,255,255,0) 46%), linear-gradient(180deg,var(--accent-hi),var(--accent) 55%,var(--accent-dk));
+  }
+  #shootBtn:disabled{filter:grayscale(.75) brightness(.72);}
   /* ねばりボタン：バトル中だけ出る。押すと自分のゲージの減りが一時的に遅くなる */
-  #gutsBtn{background:linear-gradient(180deg,#4ade80,#16a34a); display:none;}
-  #gutsBtn.on{box-shadow:0 8px 0 rgba(0,0,0,.22), 0 0 26px rgba(74,222,128,.95), 0 14px 28px rgba(0,0,0,.2);}
+  #gutsBtn{background-image:linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,0) 46%), linear-gradient(180deg,#2fbf71,#128a43 60%,#0b6b32); display:none; min-height:68px; font-size:clamp(24px,6vw,32px);}
+  #gutsBtn.on{box-shadow:0 7px 0 rgba(8,12,22,.38), 0 0 26px rgba(74,222,128,.95), 0 14px 28px rgba(0,0,0,.2);}
   #gutsBtn:active{transform:translateY(5px) scale(.97);}
   #gutsBtn.pop{animation:gpop .3s ease;}
   @keyframes gpop{0%{transform:scale(1.1);}100%{transform:scale(1);}}
@@ -157,8 +226,8 @@
   /* ねばり中は自分のゲージも緑に光って、効いているのがひと目で分かる */
   #gYou.gutsOn .bar{border-color:#4ade80; box-shadow:0 0 16px rgba(74,222,128,.9), 0 2px 8px rgba(0,0,0,.15); animation:gpulse .5s ease-in-out infinite alternate;}
   @keyframes gpulse{from{box-shadow:0 0 8px rgba(74,222,128,.6), 0 2px 8px rgba(0,0,0,.15);}to{box-shadow:0 0 22px rgba(74,222,128,1), 0 2px 8px rgba(0,0,0,.15);}}
-  #againBtn2{background:linear-gradient(180deg,#fbbf24,#f97316);}
-  .hintline{text-align:center; font-size:clamp(14px,3.6vw,18px); font-weight:800; color:var(--sub); min-height:1.4em;}
+  #againBtn2{background-image:linear-gradient(180deg, rgba(255,255,255,.3), rgba(255,255,255,0) 46%), linear-gradient(180deg,#ffb03a,#f07f13 55%,#d95f06); font-size:clamp(20px,5.6vw,32px); white-space:nowrap; overflow:hidden;}
+  .hintline{text-align:center; font-size:clamp(13px,3.6vw,18px); font-weight:700; letter-spacing:.03em; color:var(--sub); min-height:1.4em; max-width:100%; overflow-wrap:break-word; padding:0 2px;}
 
   /* ---------- けっか ---------- */
   #result{
@@ -166,13 +235,19 @@
     background:rgba(8,14,30,.45); z-index:20; padding:20px;
   }
   #result .card{
-    background:var(--panel); border-radius:28px; padding:26px 22px; text-align:center;
-    max-width:420px; width:100%; box-shadow:0 24px 60px rgba(0,0,0,.4);
+    background:linear-gradient(165deg, var(--panel), var(--panel2));
+    border:2px solid var(--line);
+    border-radius:20px; padding:26px 22px; text-align:center;
+    max-width:420px; width:100%; box-shadow:0 24px 60px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.35);
     animation:rin .35s cubic-bezier(.2,1.4,.4,1);
   }
   @keyframes rin{from{transform:scale(.7); opacity:0;}to{transform:scale(1); opacity:1;}}
-  #result .big{font-size:clamp(38px,10vw,56px); font-weight:900; line-height:1.15;}
-  #result .sub{font-size:clamp(16px,4.4vw,20px); font-weight:800; color:var(--sub); margin:8px 0 18px;}
+  /* 勝敗の一言は最大級に。勝ちは熱色＋影で感情を付ける */
+  #result .big{font-family:var(--disp); font-size:clamp(44px,11vw,66px); font-weight:900; line-height:1.15; letter-spacing:.03em;}
+  #result .big.win{color:var(--accent); text-shadow:0 4px 0 rgba(120,15,0,.25);}
+  #result .sub{font-size:clamp(16px,4.4vw,20px); font-weight:700; color:var(--sub); margin:10px 0 18px; max-width:100%; overflow-wrap:break-word;}
+  /* バースト決着のときだけ、決まり文句を傾けた熱色チップにして山場を強調する */
+  #result .sub.burst{display:inline-block; background:linear-gradient(180deg,var(--accent-hi),var(--accent) 60%,var(--accent-dk)); color:#fff; font-weight:900; padding:9px 18px; border-radius:8px; transform:rotate(-2deg); box-shadow:0 5px 0 rgba(8,12,22,.35); text-shadow:0 2px 0 rgba(120,15,0,.4);}
   #result .bigbtn{width:100%;}
   .confetti{position:fixed; top:-4vh; z-index:21; pointer-events:none; border-radius:3px; animation:fall linear forwards;}
   @keyframes fall{to{transform:translateY(112vh) rotate(720deg);}}
@@ -181,19 +256,30 @@
   }
   /* 狭い画面ではカードの余白と枠を詰めて、文字がはみ出さないようにする */
   @media (max-width:480px){
-    .choice{border-width:3px; padding:8px 2px 6px; border-radius:20px;}
-    .choice .ctip{gap:4px;}
-    .choice .ctip svg{width:20px; height:16px;}
+    #beyChoices{gap:8px;}
+    .choice{border-width:2px; padding:8px 2px 6px; border-radius:12px; min-height:118px;}
+    .choice .ctype{padding:3px 6px; letter-spacing:.02em;}
+    .choice .ctip{gap:3px;}
+    .choice .ctip svg{width:22px; height:17px;}
+  }
+  /* やや背の低い画面では9種グリッドを少し詰める（ステージが無いので以前より緩めでよい） */
+  @media (max-height:840px){
+    .choice{min-height:112px; padding:8px 2px 6px; gap:4px;}
+    .choice svg{width:clamp(48px,12vw,68px); height:clamp(48px,12vw,68px);}
+    #pick .lead{margin:2px 0 0;}
+    #beyChoices{margin-top:10px;}
   }
   /* 背の低い画面でもスクロールせず収まるように詰める */
   @media (max-height:620px){
     #app{gap:6px; padding-top:6px;}
-    #pick .lead{font-size:20px; margin:2px 0 0;}
+    #pick .lead{font-size:26px; margin:2px 0 0;}
     #pick .lead small{font-size:13px;}
-    #beyChoices{margin-top:8px;}
-    .choice{min-height:104px; padding:6px 4px;}
-    .choice svg{width:min(13vw,64px); height:min(13vw,64px);}
+    #beyChoices{margin-top:8px; gap:8px;}
+    .choice{min-height:96px; padding:6px 2px; gap:3px;}
+    .choice svg{width:clamp(40px,11vw,56px); height:clamp(40px,11vw,56px);}
     .bigbtn{min-height:60px;}
+    /* 低い画面でも主アクションの大きさは死守する */
+    #shootBtn{min-height:78px; font-size:30px;}
   }
 </style>
 </head>
@@ -201,7 +287,7 @@
 <div id="app">
 
   <div id="pick">
-    <p class="lead">ベイを えらんでね！<small>すきな いろを タップ 👆</small></p>
+    <p class="lead">ベイを <em>えらべ！</em><small>すきなベイを タップ</small></p>
     <div id="beyChoices"></div>
   </div>
 
@@ -213,22 +299,22 @@
   </div>
 
   <div id="gauges">
-    <div class="gauge" id="gYou"><div class="bar"><div class="fill"></div></div><div class="who">⭐ きみ</div></div>
-    <div class="gauge" id="gCpu"><div class="bar"><div class="fill"></div></div><div class="who">あいて 🤖</div></div>
+    <div class="gauge" id="gYou"><div class="bar"><div class="fill"></div></div><div class="who you">きみ</div></div>
+    <div class="gauge" id="gCpu"><div class="bar"><div class="fill"></div></div><div class="who cpu">あいて</div></div>
   </div>
 
   <div id="controls">
     <div class="hintline" id="hint">ベイを えらぶと シュートできるよ</div>
-    <button class="bigbtn" id="shootBtn" disabled>🚀 シュート！</button>
-    <button class="bigbtn" id="gutsBtn" type="button">💪 ねばる！</button>
+    <button class="bigbtn" id="shootBtn" disabled><span class="btnIn">シュート！</span></button>
+    <button class="bigbtn" id="gutsBtn" type="button">ねばる！</button>
   </div>
 </div>
 
 <div id="result">
   <div class="card">
-    <div class="big" id="resBig">🏆 かった！</div>
+    <div class="big" id="resBig">かった！！</div>
     <div class="sub" id="resSub">バーストフィニッシュ！</div>
-    <button class="bigbtn" id="againBtn2">🔁 もういちど たたかう</button>
+    <button class="bigbtn" id="againBtn2">もういちど たたかう</button>
   </div>
 </div>
 
@@ -243,13 +329,42 @@
        guard = ぶつかったときに自分のゲージが削られる量（被ダメージ倍率。
                小さいほど硬い＝削りガードが強い）
      動きは底の形（tip）で決まる：
-       flat（アタック）  = 大きくグルグル周回し、2周したら半径が縮んで中心へ寄る
-       round（スタミナ） = 基本は真ん中、小さな円だけ
-       sharp（防御）     = その中間、中くらいの半径で穏やかに周回 */
+       flat（アタック）    = 大きくグルグル周回し、2周したら半径が縮んで中心へ寄る
+       round（スタミナ）   = 基本は真ん中、小さな円だけ
+       sharp（防御）       = その中間、中くらいの半径で穏やかに周回
+       balance（バランス） = 中くらいの半径（約55%）で回り、終盤に
+                             約35%までゆるやかにだけ縮む */
+  /* 全9種（攻撃3／持久2／防御2／バランス2）。タイプの土台は共通マトリクス：
+       アタック   = atk高め／decay速め／周回は大回り→縮小（flat）
+       スタミナ   = decay遅め／guard受けやすい（大きめ）／中心寄り（round）
+       ディフェンス = atk低め〜中／guard受けにくい（小さめ）／中間周回（sharp）
+       バランス   = 全部中庸（atk約1.0／decay普通／guard約1.0）／
+                    半径約55%→終盤約35%へゆるやかに縮小（balance）
+     その上で各種に個性を付けるが、極端な強弱にならない範囲に収める。
+     speedMul はタイプ共通の周回スピードへの倍率（個性付け専用、既定1） */
+  /* 並び順はタイプごとにまとめる（選択画面でタイプで選びやすく） */
   var BEYS = [
-    { id:"red",   name:"ほのおドラゴン", type:"🔥 アタック",     tip:"flat",  tipLabel:"そこ：たいら",   main:"#ef4444", dark:"#991b1b", light:"#fca5a5", blades:3, atk:1.3, decay:5.0, guard:1.0 },
-    { id:"blue",  name:"うみウェーブ",   type:"💧 スタミナ",     tip:"round", tipLabel:"そこ：まるい",   main:"#3b82f6", dark:"#1e3a8a", light:"#93c5fd", blades:4, atk:0.7, decay:1.8, guard:1.3 },
-    { id:"green", name:"もりタートル",   type:"🌿 ディフェンス", tip:"sharp", tipLabel:"そこ：とがった", main:"#22c55e", dark:"#14532d", light:"#86efac", blades:6, atk:0.9, decay:2.6, guard:0.6 }
+    { id:"red",   name:"ほのおドラゴン", type:"アタック",     tip:"flat",  tipLabel:"そこ：たいら",   main:"#ef4444", dark:"#991b1b", light:"#fca5a5", blades:3, atk:1.3,  decay:5.0, guard:1.0,  speedMul:1.0 },
+    /* かみなりウルフ：素早い攻撃。周回が速く当たる回数は多いが、
+       一撃はアタック内でやや軽く、decayも速めで息切れしやすい */
+    { id:"yellow", name:"かみなりウルフ", type:"アタック",     tip:"flat",  tipLabel:"そこ：たいら",   main:"#eab308", dark:"#854d0e", light:"#fef08a", blades:5, atk:1.15, decay:5.6, guard:1.05, speedMul:1.25 },
+    /* メタルライノ：重い一撃。atkは全ベイ最高クラスで少し硬いが、
+       decayは最速クラスで長くは回れない。周回は重くゆっくり */
+    { id:"silver", name:"メタルライノ",   type:"アタック",     tip:"flat",  tipLabel:"そこ：たいら",   main:"#9ca3af", dark:"#374151", light:"#e5e7eb", blades:2, atk:1.55, decay:6.0, guard:0.85, speedMul:0.9 },
+    { id:"blue",  name:"うみウェーブ",   type:"スタミナ",     tip:"round", tipLabel:"そこ：まるい",   main:"#3b82f6", dark:"#1e3a8a", light:"#93c5fd", blades:4, atk:0.7,  decay:1.8, guard:1.3,  speedMul:1.0 },
+    /* ゆきペンギン：超持久。decayは全ベイ最遅クラスだが、
+       atkは低く、guardはスタミナ標準どおり受けやすい */
+    { id:"yuki",   name:"ゆきペンギン",   type:"スタミナ",     tip:"round", tipLabel:"そこ：まるい",   main:"#7dd3fc", dark:"#0369a1", light:"#f0f9ff", blades:8, atk:0.6,  decay:1.2, guard:1.3,  speedMul:0.9 },
+    { id:"green", name:"もりタートル",   type:"ディフェンス", tip:"sharp", tipLabel:"そこ：とがった", main:"#22c55e", dark:"#14532d", light:"#86efac", blades:6, atk:0.9,  decay:2.6, guard:0.6,  speedMul:1.0 },
+    /* いわゴーレム：超硬い。guardは全ベイ最良でほとんど削られないが、
+       atkは低め。decayは普通〜遅めで粘る */
+    { id:"iwa",    name:"いわゴーレム",   type:"ディフェンス", tip:"sharp", tipLabel:"そこ：とがった", main:"#b45309", dark:"#78350f", light:"#fcd9a8", blades:4, atk:0.65, decay:2.4, guard:0.4,  speedMul:0.9 },
+    /* ほしのユニコーン：バランス内で持久寄り。ステータスは中庸
+       （atk約1.0／guard標準1.0）で、decayだけやや遅め */
+    { id:"hoshi",  name:"ほしのユニコーン", type:"バランス",     tip:"balance", tipLabel:"そこ：なだらか", main:"#a855f7", dark:"#581c87", light:"#e9d5ff", blades:7, atk:1.0,  decay:2.2, guard:1.0,  speedMul:1.05 },
+    /* はがねカブト：バランス内でカウンター寄り。atkはやや高め（約1.1）、
+       guardは標準よりほんの少しだけ良く、decayは普通 */
+    { id:"kabuto", name:"はがねカブト",   type:"バランス",     tip:"balance", tipLabel:"そこ：なだらか", main:"#2b2b2b", dark:"#92600a", light:"#facc15", blades:6, atk:1.1,  decay:2.6, guard:0.9,  speedMul:1.05 }
   ];
   /* ゲージ満タン量（プレイヤー側）。CPU側は基礎倍率ぶんだけ変わる（通常戦は1.25倍、ボス戦は合計で約1.48倍） */
 
@@ -260,6 +375,9 @@
       tip = '<rect x="6" y="13" width="28" height="5" rx="1.5" fill="'+b.main+'" stroke="'+b.dark+'" stroke-width="2"/>';
     } else if (b.tip === "sharp"){
       tip = '<path d="M8 13 L32 13 L20 19 Z" fill="'+b.main+'" stroke="'+b.dark+'" stroke-width="2" stroke-linejoin="round"/>';
+    } else if (b.tip === "balance"){
+      /* バランスの底：たいらと とがった の中間の、なだらかな台形 */
+      tip = '<path d="M7 13 L33 13 L27 18.5 L13 18.5 Z" fill="'+b.main+'" stroke="'+b.dark+'" stroke-width="2" stroke-linejoin="round"/>';
     } else {
       tip = '<path d="M8 13 L32 13 A12 6 0 0 1 8 13 Z" fill="'+b.main+'" stroke="'+b.dark+'" stroke-width="2" stroke-linejoin="round"/>';
     }
@@ -425,7 +543,8 @@
     var btn = document.createElement("button");
     btn.className = "choice"; btn.type = "button";
     btn.setAttribute("aria-label", b.name);
-    btn.innerHTML = beySVG(b) + '<span class="cname">'+b.name+'</span><span class="ctype">'+b.type+'</span><span class="ctip">'+tipSVG(b)+b.tipLabel+'</span>';
+    var cat = b.tip === "flat" ? "t-atk" : (b.tip === "round" ? "t-sta" : (b.tip === "balance" ? "t-bal" : "t-def"));
+    btn.innerHTML = beySVG(b) + '<span class="cname" data-len="'+b.name.length+'">'+b.name+'</span><span class="ctype '+cat+'">'+b.type+'</span><span class="ctip">'+tipSVG(b)+'<span class="ctip-txt">'+b.tipLabel+'</span></span>';
     btn.addEventListener("click", function(){
       audio(); SFX.pick();
       myBey = b;
@@ -433,11 +552,41 @@
       for (var i=0;i<all.length;i++) all[i].classList.remove("sel");
       btn.classList.add("sel");
       shootBtn.disabled = false;
-      hintEl.textContent = "したの あかいボタンを おしてね！";
+      hintEl.textContent = "したの ボタンを おしてね！";
       preview();
     });
     choicesEl.appendChild(btn);
   });
+
+  /* ===== カード内テキストの自動フィット =====
+     CSSの文字数別サイズ（data-len）だけでは端末幅によってはまだ
+     はみ出すことがあるため、実測で最終保証する：表示幅に対して
+     scrollWidth が超えている間、0.5pxずつ下げて必ずカード内に
+     収める。短い名前はCSSサイズのまま＝必要以上に小さくならない。
+     フォント読み込み完了後とリサイズ時にも再計算する */
+  function fitOneText(el, minPx){
+    if (!el) return;
+    el.style.fontSize = "";
+    var limit = el.clientWidth;
+    if (!limit) return;
+    var size = parseFloat(window.getComputedStyle(el).fontSize) || 14;
+    var guard = 0;
+    while (el.scrollWidth > limit + 1 && size > minPx && guard < 60){
+      size -= 0.5;
+      el.style.fontSize = size + "px";
+      guard++;
+    }
+  }
+  function fitCardTexts(){
+    var cards = choicesEl.querySelectorAll(".choice");
+    for (var i=0;i<cards.length;i++){
+      fitOneText(cards[i].querySelector(".cname"), 9);
+      fitOneText(cards[i].querySelector(".ctype"), 8);
+      fitOneText(cards[i].querySelector(".ctip"), 8);
+    }
+  }
+  requestAnimationFrame(fitCardTexts);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitCardTexts);
 
   function makeBeyEl(b){
     var el = document.createElement("div");
@@ -447,12 +596,10 @@
     return el;
   }
   var previewEl = null;
+  /* 選択画面ではステージを表示しないので、プレビューは置かない。
+     選択状態はカードのハイライト（.sel）で十分に分かる */
   function preview(){
-    fitStadium();
     clearStage();
-    previewEl = makeBeyEl(myBey);
-    var r = stadium.clientWidth;
-    previewEl.style.transform = "translate("+(r*0.419)+"px,"+(r*0.419)+"px) rotate(20deg)";
   }
   function clearStage(){
     var els = stadium.querySelectorAll(".bey,.spark,.ringFx,.hitCore");
@@ -506,7 +653,7 @@
     SFX.guts();
     if (navigator.vibrate) navigator.vibrate(20);
     gutsBtn.classList.add("pop","on");
-    gutsBtn.textContent = "💪 ねばってる！";
+    gutsBtn.textContent = "ねばってる！";
     gYouEl.classList.add("gutsOn");
     me.el.classList.add("guts");
     sparks(me.x, me.y, 6);
@@ -514,7 +661,7 @@
   /* ねばりが切れたときの見た目を全部戻す */
   function gutsOff(){
     gutsBtn.classList.remove("on");
-    gutsBtn.textContent = "💪 ねばる！";
+    gutsBtn.textContent = "ねばる！";
     gYouEl.classList.remove("gutsOn");
     if (P.length) P[0].el.classList.remove("guts");
   }
@@ -530,6 +677,7 @@
     shootBtn.style.display = "none";
     resultEl.style.display = "none";
     document.getElementById("pick").style.display = "none";
+    stageWrap.style.display = "flex";
     hintEl.textContent = "";
     clearStage();
     gauges.style.display = "flex";
@@ -538,15 +686,17 @@
     var r = stadium.clientWidth, size = r*0.162;
     /* プレイヤーはゲージ100。CPUは基礎倍率ぶんだけ上限が大きい */
     P = [
-      { b:myBey,  el:makeBeyEl(myBey),  x:r*0.30, y:r*0.62, vx:0, vy:0, ang:0, spin:0, max:100,               me:true,  dir:1,  clashCd:0, kickT:0, recoverT:0.6, orbitCum:0, orbitAng:null, shrinkStart:null },
-      { b:cpuBey, el:makeBeyEl(cpuBey), x:r*0.70, y:r*0.38, vx:0, vy:0, ang:0, spin:0, max:100*cpuBey.cpuMult, me:false, dir:-1, clashCd:0, kickT:0, recoverT:0.6, orbitCum:0, orbitAng:null, shrinkStart:null }
+      { b:myBey,  el:makeBeyEl(myBey),  x:r*0.30, y:r*0.62, vx:0, vy:0, ang:0, spin:0, max:100,               me:true,  dir:1,  clashCd:0, kickT:0, recoverT:1.8, orbitCum:0, orbitAng:null, shrinkStart:null, baseUx:null, baseUy:null, baseTx:null, baseTy:null },
+      { b:cpuBey, el:makeBeyEl(cpuBey), x:r*0.70, y:r*0.38, vx:0, vy:0, ang:0, spin:0, max:100*cpuBey.cpuMult, me:false, dir:-1, clashCd:0, kickT:0, recoverT:1.8, orbitCum:0, orbitAng:null, shrinkStart:null, baseUx:null, baseUy:null, baseTx:null, baseTy:null }
     ];
     P.forEach(function(p){
       p.el.style.transform = "translate("+(p.x-size/2)+"px,"+(p.y-size/2)+"px)";
     });
     /* 金色の光と王冠はボス戦だけ。通常戦の相手は通常表示 */
     if (cpuStrong) P[1].el.classList.add("strong");
-    document.querySelector("#gCpu .who").textContent = cpuStrong ? "👑 ボス あいて" : "あいて 🤖";
+    var whoCpu = document.querySelector("#gCpu .who");
+    whoCpu.textContent = cpuStrong ? "ボス あいて" : "あいて";
+    whoCpu.classList.toggle("boss", cpuStrong);
     updateGauges();
 
     countEl.style.display = "flex";
@@ -583,8 +733,11 @@
       p.orbitCum = 0;
       p.orbitAng = Math.atan2(p.y - cy, p.x - cx);
       p.shrinkStart = null;
+      /* 中心付近で使う保持基底を初期位置で初期化する */
+      p.baseUx = Math.cos(a); p.baseUy = Math.sin(a);
+      p.baseTx = -p.baseUy * p.dir; p.baseTy = p.baseUx * p.dir;
     });
-    hintEl.textContent = cpuStrong ? "👑 ボスだ！ ゲージが へったら 💪ねばる！" : "ゲージが へったら 💪ねばる！ を おしてね";
+    hintEl.textContent = cpuStrong ? "ボスだ！ ゲージが へったら「ねばる！」" : "ゲージが へったら「ねばる！」を おしてね";
     lastT = performance.now();
     raf = requestAnimationFrame(tick);
   }
@@ -598,7 +751,10 @@
                          弾かれて外へ出ても再び中心へ戻ってくる
      スタミナ（round） : 約25%の中心寄りの円（基本は真ん中寄りだが、
                          以前の約13%より少し広く回る）
-     防御（sharp）     : 約45%の中くらいの円で穏やかに周回 */
+     防御（sharp）     : 約45%の中くらいの円で穏やかに周回
+     バランス（balance）: 約55%の中くらいの円。終盤（12秒〜24秒）で
+                         約35%までだけ、ゆるやかに縮む（アタックの
+                         ような急な中心寄せはしない） */
   function orbitRadius(p, maxD){
     if (p.b.tip === "flat"){
       if (p.shrinkStart === null || p.shrinkStart === undefined) return maxD * 0.85;
@@ -606,13 +762,47 @@
       return maxD * (0.85 - 0.62 * s);
     }
     if (p.b.tip === "round") return maxD * 0.25;
+    if (p.b.tip === "balance"){
+      var bs = Math.min(1, Math.max(0, (battleT - 12) / 12));
+      var bsm = bs * bs * (3 - 2 * bs); /* smoothstepでゆるやかに */
+      return maxD * (0.55 - 0.20 * bsm);
+    }
     return maxD * 0.45;
   }
-  /* 周回スピード（接線方向、px/秒）。アタックは速く、防御は穏やか。
-     全タイプとも従来比で約1.45倍→さらに約1.3倍の速さ */
+  /* 周回スピード（接線方向、px/秒）。アタックは速く、防御は穏やか、
+     バランスはその中間。全タイプとも従来比で約1.45倍→さらに約1.3倍の速さ */
   function orbitSpeed(p, r, speedRatio){
-    var base = p.b.tip === "flat" ? 1.79 : (p.b.tip === "round" ? 0.85 : 1.13);
-    return r * base * (0.35 + 0.65 * speedRatio);
+    var base = p.b.tip === "flat" ? 1.79 : (p.b.tip === "round" ? 0.85 : (p.b.tip === "balance" ? 1.32 : 1.13));
+    return r * base * (p.b.speedMul || 1) * (0.35 + 0.65 * speedRatio);
+  }
+  /* ===== 速度の天井（ラチェット防止） =====
+     速度の大きさの上限は、その時点の目標軌道速度（orbitSpeed）と
+     残りspinから決める。吹っ飛びで軌道速度を超えるのは許すが、
+     天井は軌道速度の1.75倍＋少しだけ。spinが減れば天井も下がるので、
+     終盤に速さだけが積み上がることはない */
+  function speedCap(p, r, speedRatio){
+    return orbitSpeed(p, r, speedRatio) * 1.75 + r * 0.25;
+  }
+  /* 逓減係数：現在速度が天井に近いほど、kick／swirl の実効加算を
+     小さくする。天井から遠いときは約1（従来の体感そのまま）、
+     天井付近では約0.15まで落ちる */
+  function diminishFactor(preSpeed, cap){
+    if (!(cap > 0)) return 0.15;
+    var ratio = preSpeed / cap;
+    if (ratio < 0) ratio = 0; else if (ratio > 1) ratio = 1;
+    return 1 - 0.85 * ratio * ratio;
+  }
+  /* 付け替えクランプ：衝突後の速度の大きさを
+     「天井」と「衝突前速度＋1回分のkick相当」の小さい方以下に収める。
+     加算ではなく上限付きの付け替えにすることで、ぶつかるたびに
+     速度が際限なく積み上がるラチェットを断つ */
+  function clampToBudget(p, preSpeed, kickNom, cap){
+    var v = Math.hypot(p.vx, p.vy);
+    if (!(v > 0)) return;
+    var allowed = Math.min(cap, preSpeed + Math.max(0, kickNom));
+    if (v > allowed){
+      p.vx *= allowed / v; p.vy *= allowed / v;
+    }
   }
 
   /* ===== 物理ループ ===== */
@@ -667,6 +857,16 @@
       var dx = p.x-cx, dy = p.y-cy, d = Math.hypot(dx,dy)||1;
       var ux = dx/d, uy = dy/d;            /* 中心から外向き */
       var tx = -uy*p.dir, ty = ux*p.dir;   /* 周回方向（接線） */
+      /* 中心付近の基底保持：中心を横切るように弾かれると、位置から
+         計算した接線／外向きの向きが約180°ひっくり返り、目標速度
+         自体が反転して「唐突に逆向きへ動き出す」原因になる。
+         中心からベイ半径ほど（r*0.09）以内にいる間は前フレームの
+         基底を使い続け、外に出たときだけ今の位置で基底を更新する */
+      if (d < r * 0.09 && p.baseUx !== null && p.baseUx !== undefined){
+        ux = p.baseUx; uy = p.baseUy; tx = p.baseTx; ty = p.baseTy;
+      } else {
+        p.baseUx = ux; p.baseUy = uy; p.baseTx = tx; p.baseTy = ty;
+      }
 
       /* アタックの半径縮小の開始判定：中心まわりの累積角度を数える。
          位置の角度の差分（−π〜πに正規化）の絶対値を積み上げ、2周分
@@ -686,41 +886,100 @@
       }
 
       if (p.kickT > 0){
-        /* 弾かれた直後は勢いのまま飛ぶ：操舵せず軽い減衰だけ */
+        /* 弾かれた直後は勢いのまま飛ぶ：操舵せず軽い減衰だけ。
+           ただし速度の大きさが天井を超えている分は、方向には触れず
+           大きさだけ常時削る（復帰ランプとは無関係に効く） */
         p.vx *= (1 - 0.5*dt); p.vy *= (1 - 0.5*dt);
+        var capK = speedCap(p, r, speedRatio);
+        var vK = Math.hypot(p.vx, p.vy);
+        if (vK > capK && vK > 0){
+          var newVK = capK + (vK - capK) * Math.max(0, 1 - dt*5);
+          p.vx *= newVK / vK; p.vy *= newVK / vK;
+        }
       } else {
         /* 目標速度＝接線方向の周回＋目標半径へ寄せるバネ、へ滑らかに寄せる */
         var targetR = orbitRadius(p, maxD);
-        /* 縮小開始後のアタックだけ：目標より外側にいる間は引き戻しを
-           一時的に強め、弾かれても1周以内に目に見えて中心へ復帰させる。
-           縮小開始前（2周の大回りフェーズ）や内側にいる場合は従来通り */
+        /* 引き戻しの強さは全タイプ・全フェーズで通常並みに統一する。
+           以前は縮小開始後のアタックだけ pullGain 9／上限 r*1.1 の
+           特例があり、ランプが戻り切った瞬間に弾かれた向きと逆へ
+           フルパワーで引いて「止まって逆発射」になっていた。
+           特例は廃止：ゲイン3.5／上限 r*0.72 のみ */
         var pullGain = 3.5, pullCap = r * 0.72;
-        if (p.b.tip === "flat" && p.shrinkStart !== null && p.shrinkStart !== undefined && d > targetR){
-          pullGain = 9; pullCap = r * 1.1;
-        }
-        /* 復帰ランプ：弾かれた直後（kickT終了直後）は操舵ゲインと
-           半径引き戻しゲインを約0.6秒かけて 0→通常値へ線形に戻す。
-           いきなり通常の強さで軌道へ曲げ戻す「無理矢理な挙動」を防ぐ。
-           縮小開始後アタックの引き戻し強化（pullGain/pullCap）も
-           このランプを通るので、復帰中は強化も含めて滑らかに効く */
-        p.recoverT = Math.min(0.6, (p.recoverT || 0) + dt);
-        var ramp = p.recoverT / 0.6;
+        /* 復帰ランプ：弾かれた直後（kickT終了直後）は約1.8秒かけて
+           効きを戻すが、線形ではなく smoothstep（最初はほぼ効かず、
+           中盤から徐々に効くイーズイン）にし、半径成分だけでなく
+           接線成分を含む目標速度全体への寄せに適用する */
+        p.recoverT = Math.min(1.8, (p.recoverT || 0) + dt);
+        var ramp01 = p.recoverT / 1.8;
+        var ramp = ramp01 * ramp01 * (3 - 2 * ramp01);
         var radialV = (targetR - d) * pullGain;
         var cap = pullCap;
         if (radialV > cap) radialV = cap; else if (radialV < -cap) radialV = -cap;
-        radialV *= ramp;
         var os = orbitSpeed(p, r, speedRatio);
         var desVx = tx*os + ux*radialV;
         var desVy = ty*os + uy*radialV;
-        var steer = Math.min(1, dt*4.6) * ramp;
-        p.vx += (desVx - p.vx) * steer;
-        p.vy += (desVy - p.vy) * steer;
+        /* ===== 操舵：力そのものを弱くし、向きは連続的に回す =====
+           ・接近レートは dt*0.9（時定数 約1.1秒）。以前の dt*4.6
+             （時定数 約0.22秒）のような急な寄せはしない
+           ・今の速度と目標の向きが大きくずれている（90°超）ときは
+             ベクトルの線形補間をやめ、向きを回転させて寄せる。
+             線形補間だと速度がゼロを突っ切って逆向きに発射されるが、
+             回転なら大きさを保ったまま U ターンになる
+           ・回転速度にも上限（約10 rad/秒 × ランプ連動）を付け、
+             向きの変化は常に連続になる */
+        var oldVx = p.vx, oldVy = p.vy;
+        var curMag = Math.hypot(oldVx, oldVy);
+        var desMag = Math.hypot(desVx, desVy);
+        if (curMag > 1 && desMag > 1 &&
+            (oldVx*desVx + oldVy*desVy) < 0){
+          /* 向きが90°超ずれている：回転で寄せる */
+          var angCur = Math.atan2(oldVy, oldVx);
+          var angDes = Math.atan2(desVy, desVx);
+          var gapA = angDes - angCur;
+          while (gapA > Math.PI) gapA -= Math.PI*2;
+          while (gapA < -Math.PI) gapA += Math.PI*2;
+          var maxTurn = 10 * dt * (0.3 + 0.7 * ramp);
+          var turnA = gapA;
+          if (turnA > maxTurn) turnA = maxTurn; else if (turnA < -maxTurn) turnA = -maxTurn;
+          var magRate = Math.min(1, dt*0.9) * ramp;
+          var rotMag = curMag + (desMag - curMag) * magRate;
+          var angNew = angCur + turnA;
+          p.vx = Math.cos(angNew) * rotMag;
+          p.vy = Math.sin(angNew) * rotMag;
+        } else {
+          var steer = Math.min(1, dt*0.9) * ramp;
+          p.vx += (desVx - p.vx) * steer;
+          p.vy += (desVy - p.vy) * steer;
+        }
+        /* 加速度リミット：このフレームの速度変化量そのものに上限を
+           付け、どの経路でも向き・大きさが1フレームで跳ばない
+           ことを保証する（衝突・壁の跳ね返しは対象外で従来通り） */
+        var dvx = p.vx - oldVx, dvy = p.vy - oldVy;
+        var dvL = Math.hypot(dvx, dvy);
+        var maxDv = r * 15 * dt;
+        if (dvL > maxDv && dvL > 0){
+          p.vx = oldVx + dvx * (maxDv / dvL);
+          p.vy = oldVy + dvy * (maxDv / dvL);
+        }
+        /* 速度の「大きさ」の寄せも復帰中はランプに連動させる：
+           以前は dt*3.2 でランプと無関係に常時効かせていたため、
+           復帰の動きがちぐはぐになっていた。ランプ全開（通常時）は
+           従来通り dt*3.2。なお速度天井（speedCap／この後の軟らかい
+           クランプと衝突側の clampToBudget）のハード上限は維持し、
+           加速ラチェットは再発させない */
+        var vNow = Math.hypot(p.vx, p.vy);
+        if (vNow > desMag && vNow > 0){
+          var magPull = Math.min(1, dt*3.2 * ramp);
+          var newMag = vNow + (desMag - vNow) * magPull;
+          p.vx *= newMag / vNow; p.vy *= newMag / vNow;
+        }
       }
-      /* 速度の上限：弾かれた直後だけ大きく許す。
-         kickT終了時も即時クランプせず、どちらの上限でも軟らかい処理で
+      /* 速度の上限：固定値ではなく、その時点の目標軌道速度と
+         残りspinから決まる天井（speedCap）を使う。
+         kickT終了時も即時クランプせず、軟らかい処理で
          超過分を漸近的に削る（復帰の瞬間に速度がガクッと切れない） */
       var v = Math.hypot(p.vx,p.vy);
-      var vmax = p.kickT > 0 ? r*3.19 : r*2.17;
+      var vmax = speedCap(p, r, speedRatio);
       if (v > vmax){
         var softCap = vmax + (v - vmax) * Math.max(0, 1 - dt*3);
         p.vx *= softCap/v; p.vy *= softCap/v;
@@ -768,33 +1027,60 @@
         var approach = van - vbn;
         if (approach > 0 && a.clashCd <= 0 && b.clashCd <= 0){
           var hard = approach > r*0.32;
+          /* ===== 速度予算：衝突は「無予算の加算」ではなく
+             「上限付きの付け替え」にする =====
+             衝突前の速度の大きさと、その時点の天井（目標軌道速度と
+             残りspinから決まる speedCap）を先に控える。
+             kick／swirl には天井に近いほど小さくなる逓減係数を掛け、
+             適用後も各ベイの速さが「衝突前＋1回分のkick相当」と
+             天井の小さい方を超えないよう付け替える（下でクランプ）。
+             これで激しさ（はじき・吹っ飛び）は残したまま、
+             ぶつかるたびに速さが積み上がるラチェットを断つ */
+          var spinRa = a.spin/a.max, spinRb = b.spin/b.max;
+          var avgSpin = (spinRa + spinRb) / 2;
+          var preSpeedA = Math.hypot(a.vx, a.vy);
+          var preSpeedB = Math.hypot(b.vx, b.vy);
+          var capA = speedCap(a, r, spinRa);
+          var capB = speedCap(b, r, spinRb);
+          var dimA = diminishFactor(preSpeedA, capA);
+          var dimB = diminishFactor(preSpeedB, capB);
           /* 弾性衝突：法線成分を入れ替えるように両方を跳ね返す（反発係数つき） */
           var rest = hard ? 0.96 : 0.88;
           var impulse = (1 + rest) * approach / 2;
           a.vx -= impulse*nx; a.vy -= impulse*ny;
           b.vx += impulse*nx; b.vy += impulse*ny;
-          /* ノックバック：従来比で約1.35倍（前回の約1.5倍から少し控えめに）。
-             非対称は維持する：回転がより残っている側（強く当たった側）が
+          /* ノックバック：名目は従来比で約1.35倍のまま（体感維持）。
+             非対称も維持する：回転がより残っている側（強く当たった側）が
              相手をより遠くへ弾き、自分はあまり飛ばない。
-             壁の跳ね返りは速度ベースの反射なので、吹っ飛びが大きく
-             なれば当たったときの跳ね返りも自然に強くなる */
-          var spinRa = a.spin/a.max, spinRb = b.spin/b.max;
-          var avgSpin = (spinRa + spinRb) / 2;
-          var kick = (r * (0.16 + 0.30*avgSpin) + approach * 0.28) * 1.35;
+             ただし approach 比例項はそのまま使うと、速くなるほど
+             次の approach が増えて kick が増える自己増幅になるため、
+             approach は r*0.85 で頭打ちにした値を使う。
+             さらに実効 kick には逓減係数（dim）を掛ける */
+          var approachCapped = Math.min(approach, r * 0.85);
+          var kick = (r * (0.16 + 0.30*avgSpin) + approachCapped * 0.28) * 1.35;
           var edge = spinRa - spinRb; /* -1〜1：正なら a の方が回転が残っている */
-          var kickA = kick * (1 - 0.45*edge);
-          var kickB = kick * (1 + 0.45*edge);
+          var kickNomA = kick * (1 - 0.45*edge);
+          var kickNomB = kick * (1 + 0.45*edge);
+          var kickA = kickNomA * dimA;
+          var kickB = kickNomB * dimB;
           a.vx -= nx*kickA; a.vy -= ny*kickA;
           b.vx += nx*kickB; b.vy += ny*kickB;
           /* 横方向のキック：当たったあとカーブして離れる、本物のベイらしい動き。
              符号はランダムではなく各ベイ自身の周回方向（dir）に合わせる：
              自分の回る向きと喧嘩しないので、弾かれたあと逆向きに動いてから
-             無理に回り始める二段モーションにならない。大きさは従来通り */
+             無理に回り始める二段モーションにならない。名目の大きさは
+             従来通りだが、実効値には kick と同じ逓減係数を掛ける */
           var swMag = (Math.random()*0.7 + 0.5) * r * 0.22;
           var adx = a.x-cx, ady = a.y-cy, ad = Math.hypot(adx,ady)||1;
           var bdx = b.x-cx, bdy = b.y-cy, bd = Math.hypot(bdx,bdy)||1;
-          a.vx += (-ady/ad)*a.dir*swMag; a.vy += (adx/ad)*a.dir*swMag;
-          b.vx += (-bdy/bd)*b.dir*swMag; b.vy += (bdx/bd)*b.dir*swMag;
+          a.vx += (-ady/ad)*a.dir*swMag*dimA; a.vy += (adx/ad)*a.dir*swMag*dimA;
+          b.vx += (-bdy/bd)*b.dir*swMag*dimB; b.vy += (bdx/bd)*b.dir*swMag*dimB;
+          /* 付け替えクランプ：弾性交換＋kick＋swirl を全部入れた後で、
+             各ベイの速さを「天井」と「衝突前＋名目kick1回分」の
+             小さい方以下に収める。1回の衝突で増える速さは
+             最大でも kick 1回分までになり、際限なくは上がらない */
+          clampToBudget(a, preSpeedA, kickNomA, capA);
+          clampToBudget(b, preSpeedB, kickNomB, capB);
           /* 弾かれた直後は二人とも一瞬ゆっくりに見せてから勢いよく離れる */
           a.clashCd = 0.18; b.clashCd = 0.18;
           a.kickT = 0.25; b.kickT = 0.25;
@@ -843,10 +1129,17 @@
             if (b.spin < b.max*burstThreshB && Math.random()<burstProbB) return finish(b, true);
           }
         } else if (approach > 0){
-          /* クールダウン中はすり抜けず、軽く押し合いだけ続ける */
+          /* クールダウン中はすり抜けず、軽く押し合いだけ続ける。
+             ここも無予算で足し続けると積み上がるので、適用後は
+             各ベイの速さを天井以下に収める */
           var soft = approach * 0.5;
           a.vx -= nx*soft; a.vy -= ny*soft;
           b.vx += nx*soft; b.vy += ny*soft;
+          var capSa = speedCap(a, r, a.spin/a.max);
+          var capSb = speedCap(b, r, b.spin/b.max);
+          var vSa = Math.hypot(a.vx, a.vy), vSb = Math.hypot(b.vx, b.vy);
+          if (vSa > capSa && vSa > 0){ a.vx *= capSa/vSa; a.vy *= capSa/vSa; }
+          if (vSb > capSb && vSb > 0){ b.vx *= capSb/vSb; b.vy *= capSb/vSb; }
         }
       }
     }
@@ -966,7 +1259,10 @@
     })(start);
 
     setTimeout(function(){
-      document.getElementById("resBig").textContent = iWin ? "🏆 かった！！" : "まけた…";
+      var rb = document.getElementById("resBig");
+      rb.textContent = iWin ? "かった！！" : "まけた…";
+      rb.classList.toggle("win", iWin);
+      document.getElementById("resSub").classList.toggle("burst", !!burst);
       document.getElementById("resSub").textContent =
         burst ? (iWin ? (cpuStrong ? "ボスに バースト勝ち！ ほんものだ！" : "バースト勝ち！ やったね！") : "バーストで まけた。つぎは かてるよ！")
               : (iWin ? (cpuStrong ? "ボスに スピン勝ち！ すごい！" : "スピン勝ち！ かいてんが のこった！") : "とまって まけた。つぎは かてるよ！");
@@ -977,7 +1273,7 @@
 
   function confetti(){
     if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    var colors = ["#ef4444","#3b82f6","#22c55e","#facc15","#f472b6","#38bdf8"];
+    var colors = ["#ef4444","#3b82f6","#22c55e","#eab308","#9ca3af","#7dd3fc","#a855f7","#b45309","#facc15"];
     for (var i=0;i<70;i++){
       var c = document.createElement("div");
       c.className = "confetti";
@@ -1003,11 +1299,14 @@
     if (raf) cancelAnimationFrame(raf);
     resultEl.style.display = "none";
     gauges.style.display = "none";
-    document.querySelector("#gCpu .who").textContent = "あいて 🤖";
-    document.getElementById("pick").style.display = "block";
+    stageWrap.style.display = "none";
+    var whoCpuR = document.querySelector("#gCpu .who");
+    whoCpuR.textContent = "あいて";
+    whoCpuR.classList.remove("boss");
+    document.getElementById("pick").style.display = "flex";
     shootBtn.style.display = "block";
     shootBtn.disabled = !myBey;
-    hintEl.textContent = myBey ? "したの あかいボタンを おしてね！" : "ベイを えらぶと シュートできるよ";
+    hintEl.textContent = myBey ? "したの ボタンを おしてね！" : "ベイを えらぶと シュートできるよ";
     if (myBey) preview(); else clearStage();
   }
   document.getElementById("againBtn2").addEventListener("click", function(){ audio(); SFX.pick(); reset(); });
@@ -1018,9 +1317,94 @@
 
   window.addEventListener("resize", function(){
     fitStadium();
+    fitCardTexts();
     if (state==="pick" && myBey) preview();
   });
+  window.addEventListener("orientationchange", function(){
+    setTimeout(fitCardTexts, 60);
+  });
   fitStadium();
+})();
+</script>
+<script>
+/* ===== ホーム画面アプリ化（単一HTMLのまま） =====
+   アイコンは実行時に Canvas で描いて data URL 化し、
+   apple-touch-icon に差す。manifest は Blob URL で動的に付ける。
+   図案は上から見たベイ：金属リング＋熱色のブレードとコア（オリジナル） */
+(function(){
+  "use strict";
+  function drawIcon(size){
+    var c = document.createElement("canvas"); c.width = c.height = size;
+    var x = c.getContext("2d"); x.scale(size/512, size/512);
+    /* 地：ダークスチールの放射グラデーション */
+    var bg = x.createRadialGradient(256,215,60, 256,256,370);
+    bg.addColorStop(0,"#26334d"); bg.addColorStop(.6,"#141e30"); bg.addColorStop(1,"#0a0f18");
+    x.fillStyle = bg; x.fillRect(0,0,512,512);
+    /* 金属リング */
+    var mg = x.createLinearGradient(80,60, 430,460);
+    mg.addColorStop(0,"#f4f8ff"); mg.addColorStop(.35,"#8b9bb4"); mg.addColorStop(.55,"#e8eef7"); mg.addColorStop(.8,"#67778f"); mg.addColorStop(1,"#dbe5f2");
+    x.beginPath(); x.arc(256,256,196,0,Math.PI*2); x.lineWidth = 56; x.strokeStyle = mg; x.stroke();
+    x.beginPath(); x.arc(256,256,224,0,Math.PI*2); x.lineWidth = 4; x.strokeStyle = "rgba(0,0,0,.45)"; x.stroke();
+    x.beginPath(); x.arc(256,256,168,0,Math.PI*2); x.lineWidth = 4; x.strokeStyle = "rgba(0,0,0,.45)"; x.stroke();
+    /* 溝 */
+    x.beginPath(); x.arc(256,256,164,0,Math.PI*2); x.fillStyle = "#101827"; x.fill();
+    /* ブレード：熱色の3枚アーク */
+    var og = x.createLinearGradient(120,120, 392,392);
+    og.addColorStop(0,"#ffb03a"); og.addColorStop(.55,"#f0441c"); og.addColorStop(1,"#c22408");
+    x.lineWidth = 62; x.strokeStyle = og;
+    for (var i=0;i<3;i++){
+      x.beginPath();
+      x.arc(256,256,126, i*Math.PI*2/3 + 0.34, (i+1)*Math.PI*2/3 - 0.34);
+      x.stroke();
+    }
+    /* コア */
+    var cg = x.createRadialGradient(232,232,10, 256,256,66);
+    cg.addColorStop(0,"#ffc46b"); cg.addColorStop(.5,"#f96a1e"); cg.addColorStop(1,"#d92c08");
+    x.beginPath(); x.arc(256,256,64,0,Math.PI*2); x.fillStyle = cg; x.fill();
+    x.lineWidth = 7; x.strokeStyle = "#e8eef7"; x.stroke();
+    /* 中心ボルト */
+    var bt = x.createLinearGradient(220,220, 292,292);
+    bt.addColorStop(0,"#ffffff"); bt.addColorStop(1,"#9fb0c6");
+    x.beginPath(); x.arc(256,256,25,0,Math.PI*2); x.fillStyle = bt; x.fill();
+    x.beginPath(); x.arc(256,256,10,0,Math.PI*2); x.fillStyle = "#141d2e"; x.fill();
+    /* リング左上のハイライト */
+    x.beginPath(); x.arc(256,256,196, Math.PI*1.04, Math.PI*1.44); x.lineWidth = 18; x.strokeStyle = "rgba(255,255,255,.32)"; x.stroke();
+    return c;
+  }
+  try {
+    var icon512 = drawIcon(512);
+    var url512 = icon512.toDataURL("image/png");
+    var url192 = drawIcon(192).toDataURL("image/png");
+    var url180 = drawIcon(180).toDataURL("image/png");
+    /* maskable 用：安全圏に収まるよう少し小さく描いた版 */
+    var mc = document.createElement("canvas"); mc.width = mc.height = 512;
+    var mx = mc.getContext("2d");
+    mx.fillStyle = "#0a0f18"; mx.fillRect(0,0,512,512);
+    mx.drawImage(icon512, 38, 38, 436, 436);
+    var urlMask = mc.toDataURL("image/png");
+    /* iOS ホーム画面アイコン（data URL が効く範囲で差す） */
+    var at = document.createElement("link");
+    at.rel = "apple-touch-icon"; at.href = url180;
+    document.head.appendChild(at);
+    /* manifest（Blob URL）：start_url / scope は省略し、
+       既定（この文書のURL）に従わせる */
+    var manifest = {
+      name: "ベイブレード",
+      short_name: "ベイブレード",
+      display: "standalone",
+      background_color: "#0a0f18",
+      theme_color: "#0a0f18",
+      icons: [
+        { src: url192, sizes: "192x192", type: "image/png" },
+        { src: url512, sizes: "512x512", type: "image/png" },
+        { src: urlMask, sizes: "512x512", type: "image/png", purpose: "maskable" }
+      ]
+    };
+    var blob = new Blob([JSON.stringify(manifest)], { type: "application/json" });
+    var ml = document.createElement("link");
+    ml.rel = "manifest"; ml.href = URL.createObjectURL(blob);
+    document.head.appendChild(ml);
+  } catch(e) {}
 })();
 </script>
 </body>
