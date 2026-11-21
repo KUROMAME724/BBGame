@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<meta name="color-scheme" content="light dark" />
+<link rel="icon" href="data:," />
+<title>ベイブレード</title>
+<style>
+  :root{
+    --bg:#eef4ff; --panel:#ffffff; --ink:#16213c; --sub:#5a6a8c;
+    --arena:#22355e; --arena2:#16233f; --ring:#3f5c96;
+    --accent:#ffcf3f; --go:#ff4d4d; --boost:#22c55e;
+    --card-border:#d7e0f2;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0d1526; --panel:#182540; --ink:#f2f6ff; --sub:#a9b8d8;
+      --arena:#1b2c50; --arena2:#101c36; --ring:#46639f;
+      --card-border:#2c3f68;
+    }
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Hiragino Maru Gothic ProN","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+    overflow:hidden; touch-action:manipulation; user-select:none; -webkit-user-select:none;
+  }
+  #app{
+    height:100dvh; max-width:900px; margin:0 auto;
+    display:flex; flex-direction:column; align-items:center;
+    padding:10px 12px calc(10px + env(safe-area-inset-bottom)); gap:10px;
+  }
+
+  /* ---------- えらぶ画面 ---------- */
+  #pick{width:100%; text-align:center;}
+  #pick .lead{font-size:clamp(22px,5vw,32px); font-weight:900; margin:6px 0 2px;}
+  #pick .lead small{display:block; font-size:clamp(14px,3.4vw,18px); color:var(--sub); font-weight:700; margin-top:4px;}
+  #beyChoices{display:flex; gap:10px; justify-content:center; margin-top:12px; flex-wrap:nowrap; width:100%;}
+  .choice{
+    border:4px solid var(--card-border); background:var(--panel); border-radius:24px;
+    flex:1 1 0; max-width:170px; min-height:132px; padding:10px 4px 8px; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    font-family:inherit; color:var(--ink);
+    transition:transform .12s ease, border-color .12s ease, box-shadow .12s ease;
+  }
+  .choice:active{transform:scale(.95);}
+  .choice.sel{border-color:var(--accent); box-shadow:0 0 0 4px rgba(255,207,63,.35), 0 10px 24px rgba(0,0,0,.18); transform:scale(1.04);}
+  .choice .cname{font-size:clamp(13px,3.6vw,21px); font-weight:900; white-space:nowrap;}
+  .choice .ctype{font-size:clamp(11px,2.8vw,15px); font-weight:800; color:var(--sub); white-space:nowrap;}
+  .choice svg{width:min(17vw,96px); height:min(17vw,96px);}
+
+  /* ---------- スタジアム ---------- */
+  #stageWrap{flex:1; width:100%; display:flex; align-items:center; justify-content:center; min-height:0;}
+  #stadium{
+    position:relative; border-radius:50%; flex:none;
+    width:280px; height:280px;
+    background:radial-gradient(circle at 50% 42%, var(--arena) 0 55%, var(--arena2) 78%, #0a1226 100%);
+    box-shadow:0 18px 40px rgba(10,20,50,.35), inset 0 0 0 10px var(--ring), inset 0 0 60px rgba(0,0,0,.45);
+    overflow:hidden; touch-action:none;
+  }
+  #stadium::before{
+    content:""; position:absolute; inset:16%; border-radius:50%;
+    border:3px dashed rgba(255,255,255,.14);
+  }
+  #stadium::after{
+    content:""; position:absolute; inset:38%; border-radius:50%;
+    border:3px solid rgba(255,255,255,.10);
+  }
+  .bey{
+    position:absolute; width:27%; aspect-ratio:1/1; left:0; top:0;
+    will-change:transform; pointer-events:none; z-index:3;
+  }
+  .bey svg{width:100%; height:100%; display:block; filter:drop-shadow(0 8px 10px rgba(0,0,0,.45));}
+  .bey.wobble svg{animation:wob .28s ease-in-out infinite alternate;}
+  @keyframes wob{from{margin-left:-4px;}to{margin-left:4px;}}
+  .bey .piece{position:absolute; inset:0; transition:transform .7s cubic-bezier(.2,.8,.3,1), opacity .7s;}
+  .spark{
+    position:absolute; width:14px; height:14px; margin:-7px 0 0 -7px; border-radius:50%;
+    background:radial-gradient(circle,#fff8d6 0 25%, #ffd23f 45%, rgba(255,140,0,0) 72%);
+    pointer-events:none; z-index:5;
+  }
+  .ringFx{
+    position:absolute; border:4px solid rgba(255,220,90,.85); border-radius:50%;
+    pointer-events:none; z-index:4; transform:translate(-50%,-50%);
+    animation:ringOut .45s ease-out forwards;
+  }
+  @keyframes ringOut{from{width:20px;height:20px;opacity:1;}to{width:150px;height:150px;opacity:0;}}
+  #count{
+    position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+    font-size:clamp(80px,22vw,170px); font-weight:900; color:#fff; z-index:8;
+    text-shadow:0 6px 0 rgba(0,0,0,.25), 0 0 44px rgba(255,207,63,.8); pointer-events:none;
+    text-align:center; line-height:1.05;
+  }
+  #count.pop{animation:cpop .5s ease;}
+  @keyframes cpop{0%{transform:scale(1.7);}100%{transform:scale(1);}}
+
+  /* ---------- たいりょくゲージ ---------- */
+  #gauges{width:min(92vw,620px); display:none; gap:10px;}
+  .gauge{flex:1;}
+  .gauge .bar{height:22px; border-radius:999px; background:rgba(120,135,170,.3); overflow:hidden; border:3px solid var(--panel); box-shadow:0 2px 8px rgba(0,0,0,.15);}
+  .gauge .fill{height:100%; width:100%; border-radius:999px; transition:width .18s linear;}
+  #gYou .fill{background:linear-gradient(90deg,#38bdf8,#2563eb);}
+  #gCpu .fill{background:linear-gradient(90deg,#fda4af,#e11d48);}
+  .gauge .who{font-size:15px; font-weight:900; text-align:center; margin-top:3px;}
+
+  /* ---------- ボタン ---------- */
+  #controls{width:min(92vw,620px); display:flex; flex-direction:column; gap:10px; align-items:stretch;}
+  .bigbtn{
+    border:none; cursor:pointer; font-family:inherit; font-weight:900; color:#fff;
+    border-radius:999px; min-height:76px; font-size:clamp(26px,6.5vw,36px);
+    letter-spacing:.04em; padding:10px 18px;
+    box-shadow:0 8px 0 rgba(0,0,0,.22), 0 14px 28px rgba(0,0,0,.2);
+    transition:transform .08s ease, box-shadow .08s ease, filter .15s;
+  }
+  .bigbtn:active{transform:translateY(5px); box-shadow:0 3px 0 rgba(0,0,0,.22);}
+  #shootBtn{background:linear-gradient(180deg,#ff7a59,#f43f3f);}
+  #shootBtn:disabled{filter:grayscale(.6) brightness(.8);}
+  #tapBtn{background:linear-gradient(180deg,#4ade80,#16a34a); display:none;}
+  #againBtn2{background:linear-gradient(180deg,#fbbf24,#f97316);}
+  #tapBtn.cool{filter:grayscale(.55) brightness(.75);}
+  .hintline{text-align:center; font-size:clamp(14px,3.6vw,18px); font-weight:800; color:var(--sub); min-height:1.4em;}
+
+  /* ---------- けっか ---------- */
+  #result{
+    position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+    background:rgba(8,14,30,.45); z-index:20; padding:20px;
+  }
+  #result .card{
+    background:var(--panel); border-radius:28px; padding:26px 22px; text-align:center;
+    max-width:420px; width:100%; box-shadow:0 24px 60px rgba(0,0,0,.4);
+    animation:rin .35s cubic-bezier(.2,1.4,.4,1);
+  }
+  @keyframes rin{from{transform:scale(.7); opacity:0;}to{transform:scale(1); opacity:1;}}
+  #result .big{font-size:clamp(38px,10vw,56px); font-weight:900; line-height:1.15;}
+  #result .sub{font-size:clamp(16px,4.4vw,20px); font-weight:800; color:var(--sub); margin:8px 0 18px;}
+  #result .bigbtn{width:100%;}
+  .confetti{position:fixed; top:-4vh; z-index:21; pointer-events:none; border-radius:3px; animation:fall linear forwards;}
+  @keyframes fall{to{transform:translateY(112vh) rotate(720deg);}}
+  @media (prefers-reduced-motion: reduce){
+    .confetti{display:none;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="pick">
+    <p class="lead">ベイを えらんでね！<small>すきな いろを タップ 👆</small></p>
+    <div id="beyChoices"></div>
+  </div>
+
+  <div id="stageWrap">
+    <div id="stadium">
+      <div id="count"></div>
+    </div>
+  </div>
+
+  <div id="gauges">
+    <div class="gauge" id="gYou"><div class="bar"><div class="fill"></div></div><div class="who">⭐ きみ</div></div>
+    <div class="gauge" id="gCpu"><div class="bar"><div class="fill"></div></div><div class="who">あいて 🤖</div></div>
+  </div>
+
+  <div id="controls">
+    <div class="hintline" id="hint">ベイを えらぶと シュートできるよ</div>
+    <button class="bigbtn" id="shootBtn" disabled>🚀 シュート！</button>
+    <button class="bigbtn" id="tapBtn">👆 タップで パワーアップ！</button>
+  </div>
+</div>
+
+<div id="result">
+  <div class="card">
+    <div class="big" id="resBig">🏆 かった！</div>
+    <div class="sub" id="resSub">バーストフィニッシュ！</div>
+    <button class="bigbtn" id="againBtn2">🔁 もういちど たたかう</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ===== ベイのデータ（オリジナル） ===== */
+  var BEYS = [
+    { id:"red",   name:"ほのおドラゴン", type:"🔥 アタック", main:"#ef4444", dark:"#991b1b", light:"#fca5a5", blades:3, power:1.25, stamina:0.92 },
+    { id:"blue",  name:"うみウェーブ",   type:"💧 スタミナ", main:"#3b82f6", dark:"#1e3a8a", light:"#93c5fd", blades:4, power:0.95, stamina:1.18 },
+    { id:"green", name:"もりタートル",   type:"🌿 ディフェンス", main:"#22c55e", dark:"#14532d", light:"#86efac", blades:6, power:0.8, stamina:1.05 }
+  ];
+
+  function beySVG(b, uid){
+    var blades = "";
+    for (var i=0;i<b.blades;i++){
+      var a = (360/b.blades)*i;
+      blades += '<path d="M100 100 L100 18 A82 82 0 0 1 152 40 Z" fill="'+b.main+'" stroke="'+b.dark+'" stroke-width="5" transform="rotate('+a+' 100 100)"/>';
+    }
+    return '' +
+    '<svg viewBox="0 0 200 200" aria-hidden="true">' +
+      '<circle cx="100" cy="100" r="96" fill="'+b.dark+'"/>' +
+      blades +
+      '<circle cx="100" cy="100" r="58" fill="'+b.main+'" stroke="'+b.dark+'" stroke-width="5"/>' +
+      '<circle cx="100" cy="100" r="38" fill="'+b.light+'"/>' +
+      '<circle cx="100" cy="100" r="20" fill="#ffffff" stroke="'+b.dark+'" stroke-width="4"/>' +
+      '<circle cx="100" cy="100" r="8" fill="'+b.dark+'"/>' +
+      '<circle cx="76" cy="72" r="9" fill="rgba(255,255,255,.55)"/>' +
+    '</svg>';
+  }
+  /* バースト用：3つのパーツ */
+  function beyPiecesHTML(b){
+    var full = beySVG(b);
+    return '' +
+      '<div class="piece" data-p="0" style="clip-path:polygon(0 0,100% 0,50% 55%);">' + full + '</div>' +
+      '<div class="piece" data-p="1" style="clip-path:polygon(0 0,50% 55%,0 100%);">' + full + '</div>' +
+      '<div class="piece" data-p="2" style="clip-path:polygon(100% 0,100% 100%,0 100%,50% 55%);">' + full + '</div>';
+  }
+
+  /* ===== 音（Web Audio 合成） ===== */
+  var AC = null;
+  function audio(){
+    if (!AC){ try{ AC = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+    if (AC && AC.state === "suspended") AC.resume();
+    return AC;
+  }
+  function tone(freq, dur, type, vol, slideTo, delay){
+    var ac = audio(); if(!ac) return;
+    var t = ac.currentTime + (delay||0);
+    var o = ac.createOscillator(), g = ac.createGain();
+    o.type = type||"sine"; o.frequency.setValueAtTime(freq, t);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(30,slideTo), t+dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol||0.2, t+0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+    o.connect(g); g.connect(ac.destination);
+    o.start(t); o.stop(t+dur+0.05);
+  }
+  function noise(dur, vol, freq, delay){
+    var ac = audio(); if(!ac) return;
+    var t = ac.currentTime + (delay||0);
+    var len = Math.max(1, Math.floor(ac.sampleRate*dur));
+    var buf = ac.createBuffer(1, len, ac.sampleRate);
+    var d = buf.getChannelData(0);
+    for (var i=0;i<len;i++) d[i] = (Math.random()*2-1) * (1 - i/len);
+    var src = ac.createBufferSource(); src.buffer = buf;
+    var f = ac.createBiquadFilter(); f.type="bandpass"; f.frequency.value = freq||2000; f.Q.value = 0.8;
+    var g = ac.createGain(); g.gain.value = vol||0.3;
+    src.connect(f); f.connect(g); g.connect(ac.destination);
+    src.start(t);
+  }
+  var SFX = {
+    pick:   function(){ tone(660,.12,"triangle",.22); tone(990,.16,"triangle",.22,null,.08); },
+    count:  function(){ tone(440,.14,"square",.16); },
+    go:     function(){ tone(880,.4,"square",.2,1320); noise(.25,.12,3000); },
+    shoot:  function(){ noise(.5,.28,900); tone(180,.5,"sawtooth",.1,720); },
+    clash:  function(hard){ noise(.12,.4, hard?3400:2400); tone(hard?1560:1180,.1,"square",.14,300); },
+    boost:  function(){ tone(520,.18,"sawtooth",.14,1180); },
+    burst:  function(){ noise(.55,.5,700); tone(220,.5,"sawtooth",.22,40); tone(1200,.2,"square",.15,200,.03); },
+    spinout:function(){ tone(700,.7,"sine",.18,90); },
+    win:    function(){ [523,659,784,1046].forEach(function(f,i){ tone(f,.28,"triangle",.24,null,i*.13); }); noise(.4,.08,4000,.5); },
+    lose:   function(){ [392,330,262].forEach(function(f,i){ tone(f,.3,"triangle",.2,null,i*.16); }); }
+  };
+
+  /* ===== 状態 ===== */
+  var stadium = document.getElementById("stadium");
+  var countEl = document.getElementById("count");
+  var hintEl  = document.getElementById("hint");
+  var shootBtn= document.getElementById("shootBtn");
+  var tapBtn  = document.getElementById("tapBtn");
+  var gauges  = document.getElementById("gauges");
+  var resultEl= document.getElementById("result");
+  var myBey = null, cpuBey = null;
+  var state = "pick"; // pick | count | battle | end
+  var P = []; // 物理オブジェクト
+  var raf = null, lastT = 0, boostReady = true;
+
+  /* スタジアムを空きスペースにぴったり合わせる */
+  var stageWrap = document.getElementById("stageWrap");
+  function fitStadium(){
+    var w = stageWrap.clientWidth, h = stageWrap.clientHeight;
+    if (!w || !h) return;
+    var d = Math.max(180, Math.min(w, h, 640));
+    stadium.style.width = d + "px";
+    stadium.style.height = d + "px";
+  }
+
+  /* ===== ベイ選択 ===== */
+  var choicesEl = document.getElementById("beyChoices");
+  BEYS.forEach(function(b){
+    var btn = document.createElement("button");
+    btn.className = "choice"; btn.type = "button";
+    btn.setAttribute("aria-label", b.name);
+    btn.innerHTML = beySVG(b) + '<span class="cname">'+b.name+'</span><span class="ctype">'+b.type+'</span>';
+    btn.addEventListener("click", function(){
+      audio(); SFX.pick();
+      myBey = b;
+      var all = choicesEl.querySelectorAll(".choice");
+      for (var i=0;i<all.length;i++) all[i].classList.remove("sel");
+      btn.classList.add("sel");
+      shootBtn.disabled = false;
+      hintEl.textContent = "したの あかいボタンを おしてね！";
+      preview();
+    });
+    choicesEl.appendChild(btn);
+  });
+
+  function makeBeyEl(b){
+    var el = document.createElement("div");
+    el.className = "bey";
+    el.innerHTML = beySVG(b);
+    stadium.appendChild(el);
+    return el;
+  }
+  var previewEl = null;
+  function preview(){
+    fitStadium();
+    clearStage();
+    previewEl = makeBeyEl(myBey);
+    var r = stadium.clientWidth;
+    previewEl.style.transform = "translate("+(r*0.365)+"px,"+(r*0.365)+"px) rotate(20deg)";
+  }
+  function clearStage(){
+    var els = stadium.querySelectorAll(".bey,.spark,.ringFx");
+    for (var i=0;i<els.length;i++) els[i].remove();
+    P = []; previewEl = null;
+  }
+
+  /* ===== バトル開始 ===== */
+  shootBtn.addEventListener("click", function(){
+    if (!myBey || state==="count" || state==="battle") return;
+    audio();
+    var pool = BEYS.filter(function(b){ return b.id !== myBey.id; });
+    cpuBey = pool[Math.floor(Math.random()*pool.length)];
+    startCountdown();
+  });
+
+  function startCountdown(){
+    state = "count";
+    shootBtn.style.display = "none";
+    tapBtn.style.display = "none";
+    resultEl.style.display = "none";
+    document.getElementById("pick").style.display = "none";
+    hintEl.textContent = "";
+    clearStage();
+    gauges.style.display = "flex";
+    fitStadium();
+
+    var r = stadium.clientWidth, size = r*0.27;
+    P = [
+      { b:myBey,  el:makeBeyEl(myBey),  x:r*0.30, y:r*0.62, vx:0, vy:0, ang:0, spin:0, max:100*myBey.stamina,  me:true  },
+      { b:cpuBey, el:makeBeyEl(cpuBey), x:r*0.70, y:r*0.38, vx:0, vy:0, ang:0, spin:0, max:100*cpuBey.stamina, me:false }
+    ];
+    P.forEach(function(p){
+      p.el.style.transform = "translate("+(p.x-size/2)+"px,"+(p.y-size/2)+"px)";
+    });
+    updateGauges();
+
+    countEl.style.display = "flex";
+    var steps = ["3","2","1","ゴー！<br>シュート！"];
+    var i = 0;
+    (function next(){
+      if (i < steps.length){
+        countEl.innerHTML = steps[i];
+        countEl.classList.remove("pop"); void countEl.offsetWidth; countEl.classList.add("pop");
+        if (i === steps.length-1){ SFX.go(); SFX.shoot(); } else { SFX.count(); }
+        i++; setTimeout(next, i===steps.length ? 620 : 780);
+      } else {
+        countEl.style.display = "none";
+        launch();
+      }
+    })();
+  }
+
+  function launch(){
+    state = "battle";
+    var r = stadium.clientWidth;
+    P.forEach(function(p, idx){
+      p.spin = p.max;
+      var a = Math.random()*Math.PI*2;
+      var sp = r*0.55;
+      p.vx = Math.cos(a)*sp; p.vy = Math.sin(a)*sp;
+      if (idx===1){ p.vx = -p.vx*0.9; p.vy = -p.vy*0.9; }
+    });
+    tapBtn.style.display = "block";
+    hintEl.textContent = "みどりのボタンを れんだして パワーアップ！";
+    boostReady = true; tapBtn.classList.remove("cool");
+    lastT = performance.now();
+    raf = requestAnimationFrame(tick);
+  }
+
+  /* ===== 物理ループ ===== */
+  function tick(now){
+    if (state !== "battle") return;
+    var dt = Math.min(0.033, (now-lastT)/1000); lastT = now;
+    var r = stadium.clientWidth, size = r*0.27, rad = size/2;
+    var cx = r/2, cy = r/2, maxD = r/2 - rad - r*0.035;
+
+    P.forEach(function(p){
+      /* 回転が落ちると減速 */
+      p.spin -= dt * 3.4 / p.b.stamina;
+      if (p.spin < 0) p.spin = 0;
+      var speedRatio = p.spin / p.max;
+      /* 中央に引き寄せつつ周回 */
+      var dx = p.x-cx, dy = p.y-cy, d = Math.hypot(dx,dy)||1;
+      var orbit = 140 * speedRatio + 20;
+      p.vx += (-dy/d)*orbit*dt*2.2 - (dx/d)*speedRatio*dt*30;
+      p.vy += (dx/d)*orbit*dt*2.2 - (dy/d)*speedRatio*dt*30;
+      var v = Math.hypot(p.vx,p.vy), vmax = r*(0.25+0.75*speedRatio);
+      if (v > vmax){ p.vx *= vmax/v; p.vy *= vmax/v; }
+      p.x += p.vx*dt; p.y += p.vy*dt;
+      var dd = Math.hypot(p.x-cx, p.y-cy);
+      if (dd > maxD){
+        var nx = (p.x-cx)/dd, ny = (p.y-cy)/dd;
+        p.x = cx + nx*maxD; p.y = cy + ny*maxD;
+        var dot = p.vx*nx + p.vy*ny;
+        p.vx -= 1.7*dot*nx; p.vy -= 1.7*dot*ny;
+      }
+      p.ang += dt * (p.me?1:-1) * p.spin * 0.55;
+      p.el.style.transform = "translate("+(p.x-rad)+"px,"+(p.y-rad)+"px) rotate("+p.ang+"deg)";
+      p.el.classList.toggle("wobble", speedRatio < 0.3 && p.spin > 0);
+    });
+
+    /* 衝突 */
+    if (P.length===2){
+      var a=P[0], b=P[1];
+      var dx=b.x-a.x, dy=b.y-a.y, dist=Math.hypot(dx,dy);
+      if (dist < size*0.92 && dist > 0.01){
+        var nx=dx/dist, ny=dy/dist;
+        var push = (size*0.92-dist)/2;
+        a.x -= nx*push; a.y -= ny*push; b.x += nx*push; b.y += ny*push;
+        var rel = (b.vx-a.vx)*nx + (b.vy-a.vy)*ny;
+        if (rel < 0){
+          var imp = -rel*0.9 + 60;
+          a.vx -= nx*imp; a.vy -= ny*imp; b.vx += nx*imp; b.vy += ny*imp;
+          var hard = -rel > r*0.35;
+          var dmgA = (4 + Math.random()*5) * b.b.power * (hard?1.7:1);
+          var dmgB = (4 + Math.random()*5) * a.b.power * (hard?1.7:1);
+          a.spin -= dmgA; b.spin -= dmgB;
+          sparks((a.x+b.x)/2, (a.y+b.y)/2, hard?14:8);
+          ringFx((a.x+b.x)/2, (a.y+b.y)/2);
+          SFX.clash(hard);
+          if (navigator.vibrate) navigator.vibrate(hard?60:25);
+          /* バースト判定：残り少ないときの強い一撃 */
+          if (hard){
+            if (a.spin < 26 && Math.random()<0.5) return finish(a, true);
+            if (b.spin < 26 && Math.random()<0.5) return finish(b, true);
+          }
+        }
+      }
+    }
+    updateGauges();
+
+    var loser = null;
+    P.forEach(function(p){ if (p.spin <= 0.5) loser = p; });
+    if (loser) return finish(loser, false);
+
+    raf = requestAnimationFrame(tick);
+  }
+
+  function sparks(x,y,n){
+    for (var i=0;i<n;i++){
+      var s = document.createElement("div");
+      s.className = "spark";
+      s.style.left = x+"px"; s.style.top = y+"px";
+      stadium.appendChild(s);
+      var a = Math.random()*Math.PI*2, d = 26+Math.random()*54;
+      s.animate([
+        { transform:"translate(0,0) scale(1)", opacity:1 },
+        { transform:"translate("+(Math.cos(a)*d)+"px,"+(Math.sin(a)*d)+"px) scale(.2)", opacity:0 }
+      ], { duration:260+Math.random()*220, easing:"ease-out" });
+      setTimeout((function(el){ return function(){ el.remove(); }; })(s), 520);
+    }
+  }
+  function ringFx(x,y){
+    var s = document.createElement("div");
+    s.className = "ringFx"; s.style.left = x+"px"; s.style.top = y+"px";
+    stadium.appendChild(s);
+    setTimeout(function(){ s.remove(); }, 480);
+  }
+
+  /* ===== ブースト ===== */
+  function boost(){
+    if (state !== "battle" || !boostReady) return;
+    var me = P[0], foe = P[1]; if(!me || !foe) return;
+    me.spin = Math.min(me.max, me.spin + 13);
+    var dx = foe.x-me.x, dy = foe.y-me.y, d = Math.hypot(dx,dy)||1;
+    var r = stadium.clientWidth;
+    me.vx += dx/d*r*0.55; me.vy += dy/d*r*0.55;
+    SFX.boost();
+    sparks(me.x, me.y, 6);
+    boostReady = false; tapBtn.classList.add("cool");
+    setTimeout(function(){ boostReady = true; tapBtn.classList.remove("cool"); }, 650);
+  }
+  tapBtn.addEventListener("click", boost);
+  stadium.addEventListener("pointerdown", function(){ if (state==="battle") boost(); });
+
+  /* ===== ゲージ ===== */
+  var fillYou = document.querySelector("#gYou .fill");
+  var fillCpu = document.querySelector("#gCpu .fill");
+  function updateGauges(){
+    if (!P.length) return;
+    fillYou.style.width = Math.max(0, P[0].spin/P[0].max*100) + "%";
+    fillCpu.style.width = Math.max(0, P[1].spin/P[1].max*100) + "%";
+  }
+
+  /* ===== 終了 ===== */
+  function finish(loser, burst){
+    state = "end";
+    if (raf) cancelAnimationFrame(raf);
+    tapBtn.style.display = "none";
+    var winner = (loser === P[0]) ? P[1] : P[0];
+    var iWin = winner.me;
+
+    if (burst){
+      SFX.burst();
+      if (navigator.vibrate) navigator.vibrate([80,40,120]);
+      loser.el.innerHTML = beyPiecesHTML(loser.b);
+      var dirs = [[-1,-1],[ -1.4,0.4],[1,1]];
+      var pieces = loser.el.querySelectorAll(".piece");
+      pieces.forEach(function(pc, i){
+        pc.style.transform = "translate("+(dirs[i][0]*70)+"px,"+(dirs[i][1]*70)+"px) rotate("+(i*70-60)+"deg)";
+        pc.style.opacity = "0.25";
+      });
+      sparks(loser.x, loser.y, 22);
+    } else {
+      SFX.spinout();
+      loser.el.classList.add("wobble");
+    }
+    /* 勝者は回り続ける */
+    var start = performance.now();
+    (function celeb(now){
+      if (state !== "end") return;
+      var t = (now-start)/1000;
+      winner.ang += 0.25;
+      var r = stadium.clientWidth, rad = r*0.27/2;
+      winner.el.style.transform = "translate("+(winner.x-rad)+"px,"+(winner.y-rad)+"px) rotate("+winner.ang+"deg) scale("+(1+Math.sin(t*6)*0.05)+")";
+      if (t < 1.6) requestAnimationFrame(celeb);
+    })(start);
+
+    setTimeout(function(){
+      document.getElementById("resBig").textContent = iWin ? "🏆 かった！" : "😢 まけた…";
+      document.getElementById("resSub").textContent =
+        burst ? (iWin ? "バーストフィニッシュ！ すごい！" : "バーストしちゃった… つぎは かてるよ！")
+              : (iWin ? "スピンフィニッシュ！ やったね！" : "とまっちゃった… つぎは かてるよ！");
+      resultEl.style.display = "flex";
+      if (iWin){ SFX.win(); confetti(); } else { SFX.lose(); }
+    }, burst ? 900 : 1100);
+  }
+
+  function confetti(){
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    var colors = ["#ef4444","#3b82f6","#22c55e","#facc15","#f472b6","#38bdf8"];
+    for (var i=0;i<70;i++){
+      var c = document.createElement("div");
+      c.className = "confetti";
+      c.style.left = (Math.random()*100)+"vw";
+      c.style.background = colors[i%colors.length];
+      var sz = 8+Math.random()*10;
+      c.style.width = sz+"px"; c.style.height = sz*0.6+"px";
+      c.style.animationDuration = (1.6+Math.random()*1.6)+"s";
+      c.style.animationDelay = (Math.random()*0.5)+"s";
+      document.body.appendChild(c);
+      setTimeout((function(el){ return function(){ el.remove(); }; })(c), 4200);
+    }
+  }
+
+  /* ===== リセット ===== */
+  function reset(){
+    state = "pick";
+    if (raf) cancelAnimationFrame(raf);
+    resultEl.style.display = "none";
+    gauges.style.display = "none";
+    document.getElementById("pick").style.display = "block";
+    shootBtn.style.display = "block";
+    shootBtn.disabled = !myBey;
+    tapBtn.style.display = "none";
+    hintEl.textContent = myBey ? "したの あかいボタンを おしてね！" : "ベイを えらぶと シュートできるよ";
+    if (myBey) preview(); else clearStage();
+  }
+  document.getElementById("againBtn2").addEventListener("click", function(){ audio(); SFX.pick(); reset(); });
+
+  window.addEventListener("resize", function(){
+    fitStadium();
+    if (state==="pick" && myBey) preview();
+  });
+  fitStadium();
+})();
+</script>
+</body>
+</html>
