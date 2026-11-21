@@ -72,7 +72,7 @@
     border:3px solid rgba(255,255,255,.10);
   }
   .bey{
-    position:absolute; width:27%; aspect-ratio:1/1; left:0; top:0;
+    position:absolute; width:16.2%; aspect-ratio:1/1; left:0; top:0;
     will-change:transform; pointer-events:none; z-index:3;
   }
   .bey svg{width:100%; height:100%; display:block; filter:drop-shadow(0 8px 10px rgba(0,0,0,.45));}
@@ -362,7 +362,7 @@
     clearStage();
     previewEl = makeBeyEl(myBey);
     var r = stadium.clientWidth;
-    previewEl.style.transform = "translate("+(r*0.365)+"px,"+(r*0.365)+"px) rotate(20deg)";
+    previewEl.style.transform = "translate("+(r*0.419)+"px,"+(r*0.419)+"px) rotate(20deg)";
   }
   function clearStage(){
     var els = stadium.querySelectorAll(".bey,.spark,.ringFx");
@@ -402,7 +402,7 @@
     gauges.style.display = "flex";
     fitStadium();
 
-    var r = stadium.clientWidth, size = r*0.27;
+    var r = stadium.clientWidth, size = r*0.162;
     P = [
       { b:myBey,  el:makeBeyEl(myBey),  x:r*0.30, y:r*0.62, vx:0, vy:0, ang:0, spin:0, max:100*myBey.stamina,  me:true,  mode:"orbit", modeT:0.8, pace:1, paceT:1, clashCd:0, kickT:0, jitterT:0 },
       { b:cpuBey, el:makeBeyEl(cpuBey), x:r*0.70, y:r*0.38, vx:0, vy:0, ang:0, spin:0, max:100*cpuBey.stamina, me:false, mode:"orbit", modeT:1.3, pace:1, paceT:1, clashCd:0, kickT:0, jitterT:0 }
@@ -468,7 +468,7 @@
     /* 強い衝突の直後だけ一瞬スローにして、弾かれた勢いとの緩急をつける */
     var dt = rawDt;
     if (slowmoT > 0){ slowmoT -= rawDt; dt = rawDt * 0.32; }
-    var r = stadium.clientWidth, size = r*0.27, rad = size/2;
+    var r = stadium.clientWidth, size = r*0.162, rad = size/2;
     var cx = r/2, cy = r/2, maxD = r/2 - rad - r*0.035;
 
     P.forEach(function(p, idx){
@@ -687,7 +687,7 @@
       if (state !== "end") return;
       var t = (now-start)/1000;
       winner.ang += 0.25;
-      var r = stadium.clientWidth, rad = r*0.27/2;
+      var r = stadium.clientWidth, rad = r*0.162/2;
       winner.el.style.transform = "translate("+(winner.x-rad)+"px,"+(winner.y-rad)+"px) rotate("+winner.ang+"deg) scale("+(1+Math.sin(t*6)*0.05)+")";
       if (t < 1.6) requestAnimationFrame(celeb);
     })(start);
