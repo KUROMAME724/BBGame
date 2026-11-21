@@ -232,28 +232,39 @@
   }
 
   function beySVG(b){
-    /* 丸い形：刃の数だけ丸いふくらみ（コブ）を並べた、まんまるに近い輪郭。
-       コブの数でタイプの違いは残しつつ、輪郭は全部なめらかな弧だけにする。
+    /* ほぼ円の形：回っているところを上から見ると円っぽく見えるので、
+       輪郭はうっすら波打つだけの、ほぼ真円のシルエットにする。
+       半径は 79〜86 の範囲で刃の数だけゆるく波打つ（出っ張りは約7、
+       以前のコブ状の輪郭＝土台66から約20の半分以下）。全体の大きさ
+       （最大半径86）は前と同じ。タイプの区別は輪郭ではなく、
+       内側のドットの数と色で残す。
        中心(100,100)から半径r・角度degの点を返す */
     function C(r, deg){
       var rad = (deg-90)*Math.PI/180;
       return [100 + r*Math.cos(rad), 100 + r*Math.sin(rad)];
     }
-    var lobes = "";
+    /* 輪郭：細かく点を打って滑らかにつないだ、ほぼ円のパス */
+    var outline = "";
+    var steps = b.blades * 16;
+    for (var i=0;i<steps;i++){
+      var deg = 360 * i / steps;
+      var rr = 82.5 + 3.5 * Math.cos(b.blades * (deg-90) * Math.PI/180);
+      var pt = C(rr, deg);
+      outline += (i===0 ? "M" : "L") + pt[0].toFixed(1) + " " + pt[1].toFixed(1);
+    }
+    outline += "Z";
+    /* 内側の模様：刃の数だけドットをリング状に並べる（輪郭では区別しない） */
+    var dots = "";
     var step = 360 / b.blades;
-    /* 刃が多いほどコブを小さく・外寄りにして、全体の丸さが揃うようにする */
-    var lobeR = b.blades <= 3 ? 34 : (b.blades === 4 ? 30 : 24);
-    var lobeDist = b.blades <= 3 ? 52 : (b.blades === 4 ? 56 : 60);
-    for (var i=0;i<b.blades;i++){
-      var pt = C(lobeDist, step*i);
-      lobes += '<circle cx="'+pt[0].toFixed(1)+'" cy="'+pt[1].toFixed(1)+'" r="'+lobeR+'" fill="'+b.main+'" stroke="'+b.dark+'" stroke-width="5"/>';
+    for (var j=0;j<b.blades;j++){
+      var dp = C(49, step*j);
+      dots += '<circle cx="'+dp[0].toFixed(1)+'" cy="'+dp[1].toFixed(1)+'" r="4.5" fill="'+b.dark+'"/>';
     }
     return '' +
     '<svg viewBox="0 0 200 200" aria-hidden="true">' +
-      /* コブとコブのすき間を埋める土台の丸：輪郭がギザギザにならないように */
-      '<circle cx="100" cy="100" r="66" fill="'+b.main+'"/>' +
-      lobes +
+      '<path d="'+outline+'" fill="'+b.main+'" stroke="'+b.dark+'" stroke-width="5" stroke-linejoin="round"/>' +
       '<circle cx="100" cy="100" r="58" fill="'+b.main+'" stroke="'+b.dark+'" stroke-width="5"/>' +
+      dots +
       '<circle cx="100" cy="100" r="40" fill="'+b.light+'"/>' +
       '<circle cx="100" cy="100" r="21" fill="#ffffff" stroke="'+b.dark+'" stroke-width="4"/>' +
       '<circle cx="100" cy="100" r="8" fill="'+b.dark+'"/>' +
