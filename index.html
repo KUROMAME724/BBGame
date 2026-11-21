@@ -700,18 +700,28 @@
           /* 弾かれた後は少し休んでからまた動き出す（間） */
           a.mode = "drift"; a.paceT = 0.5; a.modeT = 0.45 + Math.random()*0.3;
           b.mode = "drift"; b.paceT = 0.5; b.modeT = 0.45 + Math.random()*0.3;
-          /* ダメージ：両者まったく同じ計算（差は基礎ステータスの倍率だけ） */
-          var dmgA = (3.5 + Math.random()*4.5) * b.b.power * (hard?1.5:1.1);
-          var dmgB = (3.5 + Math.random()*4.5) * a.b.power * (hard?1.5:1.1);
+          /* ダメージ：計算式は両者共通。攻撃タイプ（底が平ら）はタイプ特性として
+             与ダメージが約1.4倍になる。CPUが攻撃タイプのときも同じ倍率で、
+             自分が攻撃タイプのときだけ有利になる非対称にはしない */
+          var atkMultA = (b.b.tip === "flat") ? 1.4 : 1.0; /* b→a への攻撃倍率 */
+          var atkMultB = (a.b.tip === "flat") ? 1.4 : 1.0; /* a→b への攻撃倍率 */
+          var dmgA = (3.5 + Math.random()*4.5) * b.b.power * (hard?1.5:1.1) * atkMultA;
+          var dmgB = (3.5 + Math.random()*4.5) * a.b.power * (hard?1.5:1.1) * atkMultB;
           a.spin -= dmgA; b.spin -= dmgB;
           sparks((a.x+b.x)/2, (a.y+b.y)/2, hard?14:8);
           ringFx((a.x+b.x)/2, (a.y+b.y)/2);
           SFX.clash(hard);
           if (navigator.vibrate) navigator.vibrate(hard?60:25);
-          /* バースト：閾値も確率も両者まったく同じ */
+          /* バースト：基本の閾値・確率は両者同じ。ただし攻撃タイプの
+             強い一撃を受けたときは、タイプ特性として少しバーストしやすくする
+             （攻撃側が自分でもCPUでも同じルール） */
           if (hard){
-            if (a.spin < a.max*0.22 && Math.random()<0.35) return finish(a, true);
-            if (b.spin < b.max*0.22 && Math.random()<0.35) return finish(b, true);
+            var burstThreshA = (b.b.tip === "flat") ? 0.30 : 0.22;
+            var burstProbA   = (b.b.tip === "flat") ? 0.50 : 0.35;
+            var burstThreshB = (a.b.tip === "flat") ? 0.30 : 0.22;
+            var burstProbB   = (a.b.tip === "flat") ? 0.50 : 0.35;
+            if (a.spin < a.max*burstThreshA && Math.random()<burstProbA) return finish(a, true);
+            if (b.spin < b.max*burstThreshB && Math.random()<burstProbB) return finish(b, true);
           } else {
             /* 通常ヒットでも、残りわずかなら両方とも たまにバーストする */
             if (a.spin < a.max*0.12 && Math.random()<0.14) return finish(a, true);
