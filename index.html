@@ -874,8 +874,8 @@
     var r = stadium.clientWidth, size = r*0.162;
     /* プレイヤーはゲージ100。CPUは基礎倍率ぶんだけ上限が大きい */
     P = [
-      { b:myBey,  el:makeBeyEl(myBey),  x:r*0.30, y:r*0.62, vx:0, vy:0, ang:0, spin:0, max:100,               me:true,  dir:1,  clashCd:0, kickT:0, recoverT:1.0, orbitCum:0, orbitAng:null, shrinkStart:null, baseUx:null, baseUy:null, baseTx:null, baseTy:null, ringOut:false, ringOutDx:null, ringOutDy:null },
-      { b:cpuBey, el:makeBeyEl(cpuBey), x:r*0.70, y:r*0.38, vx:0, vy:0, ang:0, spin:0, max:100*cpuBey.cpuMult, me:false, dir:-1, clashCd:0, kickT:0, recoverT:1.0, orbitCum:0, orbitAng:null, shrinkStart:null, baseUx:null, baseUy:null, baseTx:null, baseTy:null, ringOut:false, ringOutDx:null, ringOutDy:null }
+      { b:myBey,  el:makeBeyEl(myBey),  x:r*0.30, y:r*0.62, vx:0, vy:0, ang:0, spin:0, max:100,               me:true,  dir:1,  clashCd:0, kickT:0, recoverT:1.8, orbitCum:0, orbitAng:null, shrinkStart:null, baseUx:null, baseUy:null, baseTx:null, baseTy:null, ringOut:false, ringOutDx:null, ringOutDy:null },
+      { b:cpuBey, el:makeBeyEl(cpuBey), x:r*0.70, y:r*0.38, vx:0, vy:0, ang:0, spin:0, max:100*cpuBey.cpuMult, me:false, dir:-1, clashCd:0, kickT:0, recoverT:1.8, orbitCum:0, orbitAng:null, shrinkStart:null, baseUx:null, baseUy:null, baseTx:null, baseTy:null, ringOut:false, ringOutDx:null, ringOutDy:null }
     ];
     P.forEach(function(p){
       p.el.style.transform = "translate("+(p.x-size/2)+"px,"+(p.y-size/2)+"px)";
@@ -1182,17 +1182,19 @@
            操舵の導入に合わせて 3.5→5.0 に強化。目標半径への追随と
            縮小の追い付きを速くするため） */
         var pullGain = 5.0, pullCap = r * 0.72;
-        /* 復帰ランプ：弾かれた直後（kickT終了直後）は約1秒かけて
-           効きを戻すが、線形ではなく smoothstep（最初はほぼ効かず、
+        /* 復帰ランプ：弾かれた直後（kickT終了直後）は約1.8秒かけて
+           効きを戻す。線形ではなく smoothstep（最初はほぼ効かず、
            中盤から徐々に効くイーズイン）にし、半径成分だけでなく
            接線成分を含む目標速度全体への寄せに適用する。
-           以前は約1.8秒と長く、弾かれたベイが軌道へ戻るまで
-           約2秒さまよい続け、中心に集まる相手とすれ違い続けて
-           「当たらない」時間の主因になっていた（実測で確認）。
-           成分別操舵では成分がゼロを横切っても速度は連続なので、
-           1秒まで短くしても逆発射の心配は小さい */
-        p.recoverT = Math.min(1.0, (p.recoverT || 0) + dt);
-        var ramp01 = p.recoverT / 1.0;
+           1秒まで短くすると、ランプが戻り切る頃に残っていた向きの
+           ずれが短時間で一気に解消され、「急に無理矢理元の周回方向へ
+           動き出す」見え方になる（実機で再発を確認）。滑らかな復帰の
+           ためには1.8秒が必要で、さらに下の「成分空間での進行方向の
+           変化率リミット」と組み合わせて初めて効く。なお半径の縮小
+           追随そのものは通常時（ランプ全開時）の寄せレートで決まる
+           ので、ランプを戻しても縮小の追い付きは変わらない */
+        p.recoverT = Math.min(1.8, (p.recoverT || 0) + dt);
+        var ramp01 = p.recoverT / 1.8;
         var ramp = ramp01 * ramp01 * (3 - 2 * ramp01);
         var radialV = (targetR - d) * pullGain;
         var cap = pullCap;
@@ -1264,6 +1266,38 @@
         var limC = r * 15 * dt;
         if (vrWork - vrBase > limC) vrWork = vrBase + limC; else if (vrBase - vrWork > limC) vrWork = vrBase - limC;
         if (vtWork - vtBase > limC) vtWork = vtBase + limC; else if (vtBase - vtWork > limC) vtWork = vtBase - limC;
+        /* 復帰中の操舵は「回転＋大きさ寄せ」に切り替える：
+           成分を個別に直線で寄せる方式だと、弾かれて接線成分が
+           逆向きになったベイの速度ベクトルが成分空間の原点近くを
+           通過し（速さがほぼゼロまで落ち）、向きが短時間に反転して
+           「急に無理矢理元の周回方向へ動き出す」見え方になる
+           （ゼロ跨ぎ。切り出しシミュレーションで、原点通過の瞬間に
+           向きの変化率が上限の数倍へ跳ねることを確認）。
+           そこで復帰中だけ、現在成分の向きを目標成分
+           （radialV, os）の向きへ上限つきの速度（約2.6 rad/秒）で
+           回し、大きさは目標の大きさへ滑らかに寄せる。速さを保った
+           ままUターンの弧を描いて周回へ戻るので、ゼロ跨ぎは起きない。
+           回転は平行移動で基底回転を打ち消し済みの成分空間で数える
+           ため、通常周回や半径の縮小追随には干渉しない（通常時は
+           従来の成分別の引き寄せのまま）。速度がほぼゼロのときは
+           向きが定まらないので、従来の引き寄せ結果を使う */
+        if (p.recoverT < 1.8){
+          var mCur = Math.hypot(vrBase, vtBase);
+          if (mCur > r * 0.05){
+            var aCur = Math.atan2(vtBase, vrBase);
+            var aTgt = Math.atan2(os, radialV);
+            var mTgt = Math.hypot(radialV, os);
+            var dTurn = aTgt - aCur;
+            while (dTurn > Math.PI) dTurn -= Math.PI * 2;
+            while (dTurn < -Math.PI) dTurn += Math.PI * 2;
+            var maxTurn = 2.6 * dt;
+            if (dTurn > maxTurn) dTurn = maxTurn; else if (dTurn < -maxTurn) dTurn = -maxTurn;
+            var aNew = aCur + dTurn;
+            var mNew = mCur + (mTgt - mCur) * Math.min(1, dt * 3.2 * ramp);
+            vrWork = Math.cos(aNew) * mNew;
+            vtWork = Math.sin(aNew) * mNew;
+          }
+        }
         p.vx = ux*vrWork + tx*vtWork;
         p.vy = uy*vrWork + ty*vtWork;
         /* 加速度リミットは操舵ブロック内の「成分版」に移設した
