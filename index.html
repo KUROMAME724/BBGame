@@ -401,15 +401,18 @@
      speedMul はタイプ共通の周回スピードへの倍率（個性付け専用、既定1） */
   /* 並び順はタイプごとにまとめる（選択画面でタイプで選びやすく） */
   var BEYS = [
-    { id:"red",   name:"ほのおドラゴン", type:"アタック",     tip:"flat", main:"#ef4444", dark:"#991b1b", light:"#fca5a5", blades:3, atk:1.3,  decay:5.0, guard:1.0,  speedMul:1.0 },
+    { id:"red",   name:"ほのおドラゴン", type:"アタック",     tip:"flat", main:"#ef4444", dark:"#991b1b", light:"#fca5a5", blades:3, atk:1.3,  decay:6.3, guard:1.0,  speedMul:1.0 },
     /* かみなりウルフ：素早い攻撃。周回が速く当たる回数は多いが、
        一撃はアタック内でやや軽く、decayも速めで息切れしやすい */
-    { id:"yellow", name:"かみなりウルフ", type:"アタック",     tip:"flat", main:"#eab308", dark:"#854d0e", light:"#fef08a", blades:5, atk:1.15, decay:5.6, guard:1.05, speedMul:1.25 },
+    { id:"yellow", name:"かみなりウルフ", type:"アタック",     tip:"flat", main:"#eab308", dark:"#854d0e", light:"#fef08a", blades:5, atk:1.15, decay:7.0, guard:1.05, speedMul:1.25 },
     /* メタルライノ：重い一撃。atkは全ベイ最高クラスで少し硬いが、
        decayは最速クラスで長くは回れない。周回は重くゆっくり */
-    { id:"silver", name:"メタルライノ",   type:"アタック",     tip:"flat", main:"#9ca3af", dark:"#374151", light:"#e5e7eb", blades:2, atk:1.55, decay:6.0, guard:0.85, speedMul:0.9 },
-    { id:"blue",  name:"うみウェーブ",   type:"スタミナ",     tip:"round",main:"#3b82f6", dark:"#1e3a8a", light:"#93c5fd", blades:4, atk:0.7,  decay:1.5, guard:1.0,  speedMul:1.0 },
-    /* ゆきペンギン：超持久。decayは全ベイ最遅（1.0）が個性。
+    { id:"silver", name:"メタルライノ",   type:"アタック",     tip:"flat", main:"#9ca3af", dark:"#374151", light:"#e5e7eb", blades:2, atk:1.55, decay:7.5, guard:0.85, speedMul:0.9 },
+    { id:"blue",  name:"うみウェーブ",   type:"スタミナ",     tip:"round",main:"#3b82f6", dark:"#1e3a8a", light:"#93c5fd", blades:4, atk:0.7,  decay:1.4, guard:1.0,  speedMul:1.0 },
+    /* ゆきペンギン：超持久。decayは全ベイ最遅（0.9）が個性。
+       2026-11-22 全体調整：持久以外は decay を約25%増し（試合を短く＆
+       持久の相対優位を広げる）、持久2種だけ微減（ウェーブ1.5→1.4／
+       ペンギン1.0→0.9）。
        周回は以前 speedMul 0.6（全ベイ最遅）だったが、全ベイが
        中心へ寄って常時ぶつかる現在の物理では、遅い＝場に追いつけず
        もっさり見えるだけになっていたため、2026-11-22 に標準寄りの
@@ -422,8 +425,8 @@
        1.8→1.5／ペンギン 1.2→1.0）。持久の勝ち筋は「中心で
        標準並みに耐えながら、相手より遅い減衰で粘り勝つ」に
        一本化する。バランスの最終判断は実機プレイで行う */
-    { id:"yuki",   name:"ゆきペンギン",   type:"スタミナ",     tip:"round",main:"#7dd3fc", dark:"#0369a1", light:"#f0f9ff", blades:8, atk:0.65, decay:1.0, guard:1.0,  speedMul:0.88 },
-    { id:"green", name:"もりタートル",   type:"ディフェンス", tip:"sharp",main:"#22c55e", dark:"#14532d", light:"#86efac", blades:6, atk:0.9,  decay:2.6, guard:0.6,  speedMul:1.0 },
+    { id:"yuki",   name:"ゆきペンギン",   type:"スタミナ",     tip:"round",main:"#7dd3fc", dark:"#0369a1", light:"#f0f9ff", blades:8, atk:0.65, decay:0.9, guard:1.0,  speedMul:0.88 },
+    { id:"green", name:"もりタートル",   type:"ディフェンス", tip:"sharp",main:"#22c55e", dark:"#14532d", light:"#86efac", blades:6, atk:0.9,  decay:3.3, guard:0.6,  speedMul:1.0 },
     /* いわゴーレム：超硬い。guardは全ベイ最良（0.4）でほとんど削られず、
        攻撃タイプの火力をいなして勝つ。その代わり atk は全ベイ最低で
        持久タイプを倒し切れず、decay も普通〜やや速め（タートルより速い）
@@ -431,7 +434,7 @@
        「攻撃＞持久＞防御＞攻撃」を成立させるための調整。
        以前は decay が防御標準より遅く atk も効きすぎていて、
        持久が全く勝てなかった） */
-    { id:"iwa",    name:"いわゴーレム",   type:"ディフェンス", tip:"sharp",main:"#b45309", dark:"#78350f", light:"#fcd9a8", blades:4, atk:0.55, decay:3.6, guard:0.4,  speedMul:0.9 },
+    { id:"iwa",    name:"いわゴーレム",   type:"ディフェンス", tip:"sharp",main:"#b45309", dark:"#78350f", light:"#fcd9a8", blades:4, atk:0.55, decay:4.5, guard:0.4,  speedMul:0.9 },
     /* ほしのユニコーン：バランス内で持久寄り。以前は atk1.0／decay2.2／
        guard1.0 で、総当たり平均が約42%と全9種の中でも弱い部類だった
        （特にライノ・タートル・カブトに1割前後しか勝てず、実プレイでも
@@ -442,10 +445,10 @@
        中の中〜中の上。総当たりでもタートル／ライノ／ゴーレム／カブトの
        後ろに位置し、最強にはなっていない。苦手な相手（ライノ・
        タートルには依然1割前後）も残してある */
-    { id:"hoshi",  name:"ほしのユニコーン", type:"バランス",     tip:"balance",main:"#a855f7", dark:"#581c87", light:"#e9d5ff", blades:7, atk:1.08, decay:2.1, guard:0.98, speedMul:1.05 },
+    { id:"hoshi",  name:"ほしのユニコーン", type:"バランス",     tip:"balance",main:"#a855f7", dark:"#581c87", light:"#e9d5ff", blades:7, atk:1.08, decay:2.6, guard:0.98, speedMul:1.05 },
     /* はがねカブト：バランス内でカウンター寄り。atkはやや高め（約1.1）、
        guardは標準よりほんの少しだけ良く、decayは普通 */
-    { id:"kabuto", name:"はがねカブト",   type:"バランス",     tip:"balance",main:"#2b2b2b", dark:"#92600a", light:"#facc15", blades:6, atk:1.1,  decay:2.6, guard:0.9,  speedMul:1.05 }
+    { id:"kabuto", name:"はがねカブト",   type:"バランス",     tip:"balance",main:"#2b2b2b", dark:"#92600a", light:"#facc15", blades:6, atk:1.1,  decay:3.3, guard:0.9,  speedMul:1.05 }
   ];
   /* ゲージ満タン量（プレイヤー側）。CPU側は基礎倍率ぶんだけ変わる（通常戦は1.15倍、ボス戦は合計で約1.36倍） */
 
