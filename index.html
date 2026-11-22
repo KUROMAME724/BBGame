@@ -370,9 +370,17 @@
        以前は decay が防御標準より遅く atk も効きすぎていて、
        持久が全く勝てなかった） */
     { id:"iwa",    name:"いわゴーレム",   type:"ディフェンス", tip:"sharp",main:"#b45309", dark:"#78350f", light:"#fcd9a8", blades:4, atk:0.55, decay:3.6, guard:0.4,  speedMul:0.9 },
-    /* ほしのユニコーン：バランス内で持久寄り。ステータスは中庸
-       （atk約1.0／guard標準1.0）で、decayだけやや遅め */
-    { id:"hoshi",  name:"ほしのユニコーン", type:"バランス",     tip:"balance",main:"#a855f7", dark:"#581c87", light:"#e9d5ff", blades:7, atk:1.0,  decay:2.2, guard:1.0,  speedMul:1.05 },
+    /* ほしのユニコーン：バランス内で持久寄り。以前は atk1.0／decay2.2／
+       guard1.0 で、総当たり平均が約42%と全9種の中でも弱い部類だった
+       （特にライノ・タートル・カブトに1割前後しか勝てず、実プレイでも
+       「弱すぎる」と感じられた）。バランスの個性（全部中庸＋持久寄り）は
+       残したまま、atk 1.08／decay 2.1（少しだけ遅く）／guard 0.98
+       （ほんの少し硬く）へ小幅に底上げ。シミュレーション検証
+       （対称条件・各対戦1,600〜3,000戦）：平均勝率 約42%→約53%で
+       中の中〜中の上。総当たりでもタートル／ライノ／ゴーレム／カブトの
+       後ろに位置し、最強にはなっていない。苦手な相手（ライノ・
+       タートルには依然1割前後）も残してある */
+    { id:"hoshi",  name:"ほしのユニコーン", type:"バランス",     tip:"balance",main:"#a855f7", dark:"#581c87", light:"#e9d5ff", blades:7, atk:1.08, decay:2.1, guard:0.98, speedMul:1.05 },
     /* はがねカブト：バランス内でカウンター寄り。atkはやや高め（約1.1）、
        guardは標準よりほんの少しだけ良く、decayは普通 */
     { id:"kabuto", name:"はがねカブト",   type:"バランス",     tip:"balance",main:"#2b2b2b", dark:"#92600a", light:"#facc15", blades:6, atk:1.1,  decay:2.6, guard:0.9,  speedMul:1.05 }
