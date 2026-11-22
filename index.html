@@ -298,6 +298,40 @@
     /* 低い画面でも主アクションの大きさは死守する */
     #shootBtn{min-height:78px; font-size:30px;}
   }
+  /* ---------- 横向き（ランドスケープ）のバトル画面 ----------
+     縦積みレイアウトのままだと、横向きではスタジアムがゲージや
+     ボタンを押し潰し、ゲージがスタジアムに隠れ、ねばるボタンが
+     画面右端からはみ出して切れてしまう（iPad実機で確認）。
+     バトル中（body.battling）だけ2カラムのグリッドにする：
+     左にスタジアム（セル内で高さ・幅の小さい方に合わせて径を決める
+     ので、はみ出しようがない）、右に幅320pxの列を取り、
+     ゲージは縦積み、ヒントとねばるボタンもその列に収める。
+     グリッドのセル同士は重ならないため、スタジアムがゲージに
+     かぶることは構造的に起きない */
+  @media (orientation: landscape){
+    body.battling #app{
+      display:grid;
+      grid-template-columns:minmax(0,1fr) 320px;
+      grid-template-rows:auto minmax(0,1fr);
+      align-items:stretch;
+    }
+    body.battling #stageWrap{grid-column:1; grid-row:1 / span 2; width:100%; height:100%;}
+    body.battling #gauges{grid-column:2; grid-row:1; width:100%; flex-direction:column; gap:8px;}
+    body.battling #gauges .gauge{flex:none; width:100%;}
+    body.battling #controls{grid-column:2; grid-row:2; width:100%; justify-content:flex-start;}
+  }
+  /* 背の低い横向き（スマホ横持ちなど）では選択画面も詰めて、
+     スクロールなしで全部が画面内に収まるようにする */
+  @media (orientation: landscape) and (max-height:500px){
+    #pick .lead{font-size:24px; margin:0;}
+    #pick .lead small{font-size:12px; margin-top:2px;}
+    #beyChoices{margin-top:6px; gap:6px;}
+    .choice{min-height:60px; padding:4px 2px; gap:2px;}
+    .choice svg{width:38px; height:38px;}
+    .bigbtn{min-height:48px;}
+    #shootBtn{min-height:54px; font-size:24px;}
+    .hintline{min-height:1.1em; font-size:12px;}
+  }
 </style>
 </head>
 <body>
@@ -346,7 +380,7 @@
        guard = ぶつかったときに自分のゲージが削られる量（被ダメージ倍率。
                小さいほど硬い＝削りガードが強い）
      動きは底の形（tip）で決まる：
-       flat（アタック）    = 大きくグルグル周回し、2周したら半径が縮んで中心へ寄る
+       flat（アタック）    = 大きくグルグル周回し、1.5周したら半径が縮んで中心へ寄る
        round（スタミナ）   = 基本は真ん中、小さな円だけ
        sharp（防御）       = その中間、中くらいの半径で穏やかに周回
        balance（バランス） = 中くらいの半径（約55%）で回り、終盤に
@@ -357,7 +391,9 @@
      終盤は全ベイが中心付近でぶつかり合う） */
   /* 全9種（攻撃3／持久2／防御2／バランス2）。タイプの土台は共通マトリクス：
        アタック   = atk高め／decay速め／周回は大回り→縮小（flat）
-       スタミナ   = decay遅め／guard受けやすい（大きめ）／中心寄り（round）
+       スタミナ   = decay遅め／guard標準（1.0）／中心寄り（round）
+                    ※guard は以前 1.3 だったが、全ベイが中心へ寄る
+                    現在の物理では持久が最も損をするため標準に戻した
        ディフェンス = atk低め〜中／guard受けにくい（小さめ）／中間周回（sharp）
        バランス   = 全部中庸（atk約1.0／decay普通／guard約1.0）／
                     半径約55%→終盤約35%へゆるやかに縮小（balance）
@@ -372,14 +408,19 @@
     /* メタルライノ：重い一撃。atkは全ベイ最高クラスで少し硬いが、
        decayは最速クラスで長くは回れない。周回は重くゆっくり */
     { id:"silver", name:"メタルライノ",   type:"アタック",     tip:"flat", main:"#9ca3af", dark:"#374151", light:"#e5e7eb", blades:2, atk:1.55, decay:6.0, guard:0.85, speedMul:0.9 },
-    { id:"blue",  name:"うみウェーブ",   type:"スタミナ",     tip:"round",main:"#3b82f6", dark:"#1e3a8a", light:"#93c5fd", blades:4, atk:0.7,  decay:1.8, guard:1.3,  speedMul:1.0 },
+    { id:"blue",  name:"うみウェーブ",   type:"スタミナ",     tip:"round",main:"#3b82f6", dark:"#1e3a8a", light:"#93c5fd", blades:4, atk:0.7,  decay:1.5, guard:1.0,  speedMul:1.0 },
     /* ゆきペンギン：超持久。decayは全ベイ最遅で、周回も全ベイ最遅
        （speedMul 0.6）。遅く回ることで正面衝突の回数と激しさが落ち、
-       中心でジッと粘り続けられるのが本体。atkは低め、guardは
-       スタミナ標準どおり受けやすい。以前は速く回っていたため
-       いわゴーレムに正面から削り切られていたが、この組み合わせで
-       ゴーレム相手でも粘り勝ちできるようになった（要シミュレーション確認済み） */
-    { id:"yuki",   name:"ゆきペンギン",   type:"スタミナ",     tip:"round",main:"#7dd3fc", dark:"#0369a1", light:"#f0f9ff", blades:8, atk:0.65, decay:1.2, guard:1.3,  speedMul:0.6 },
+       中心でジッと粘り続けられるのが本体。atkは低め。
+       スタミナ2種の guard は以前 1.3（受けやすい）だったが、
+       全ベイが中心へ寄って常時ぶつかり合う現在の物理では、
+       中心に居続ける持久が衝突ダメージを最も多く受けてしまい
+       「スタミナが弱い」状態になっていた。2026-11-22 の底上げで
+       guard を標準の 1.0 に戻し、decay も遅くした（ウェーブ
+       1.8→1.5／ペンギン 1.2→1.0）。持久の勝ち筋は「中心で
+       標準並みに耐えながら、相手より遅い減衰で粘り勝つ」に
+       一本化する。バランスの最終判断は実機プレイで行う */
+    { id:"yuki",   name:"ゆきペンギン",   type:"スタミナ",     tip:"round",main:"#7dd3fc", dark:"#0369a1", light:"#f0f9ff", blades:8, atk:0.65, decay:1.0, guard:1.0,  speedMul:0.6 },
     { id:"green", name:"もりタートル",   type:"ディフェンス", tip:"sharp",main:"#22c55e", dark:"#14532d", light:"#86efac", blades:6, atk:0.9,  decay:2.6, guard:0.6,  speedMul:1.0 },
     /* いわゴーレム：超硬い。guardは全ベイ最良（0.4）でほとんど削られず、
        攻撃タイプの火力をいなして勝つ。その代わり atk は全ベイ最低で
@@ -807,6 +848,8 @@
 
   function startCountdown(){
     state = "count";
+    /* 横向きレイアウト（2カラムグリッド）はバトル中だけ有効にする */
+    document.body.classList.add("battling");
     hitstopT = 0; shakeT = 0; hitShakeA = 0; hitShakeB = 0;
     stadium.style.transform = "";
     stadium.style.overflow = "";
@@ -831,8 +874,8 @@
     var r = stadium.clientWidth, size = r*0.162;
     /* プレイヤーはゲージ100。CPUは基礎倍率ぶんだけ上限が大きい */
     P = [
-      { b:myBey,  el:makeBeyEl(myBey),  x:r*0.30, y:r*0.62, vx:0, vy:0, ang:0, spin:0, max:100,               me:true,  dir:1,  clashCd:0, kickT:0, recoverT:1.8, orbitCum:0, orbitAng:null, shrinkStart:null, baseUx:null, baseUy:null, baseTx:null, baseTy:null, ringOut:false },
-      { b:cpuBey, el:makeBeyEl(cpuBey), x:r*0.70, y:r*0.38, vx:0, vy:0, ang:0, spin:0, max:100*cpuBey.cpuMult, me:false, dir:-1, clashCd:0, kickT:0, recoverT:1.8, orbitCum:0, orbitAng:null, shrinkStart:null, baseUx:null, baseUy:null, baseTx:null, baseTy:null, ringOut:false }
+      { b:myBey,  el:makeBeyEl(myBey),  x:r*0.30, y:r*0.62, vx:0, vy:0, ang:0, spin:0, max:100,               me:true,  dir:1,  clashCd:0, kickT:0, recoverT:1.0, orbitCum:0, orbitAng:null, shrinkStart:null, baseUx:null, baseUy:null, baseTx:null, baseTy:null, ringOut:false, ringOutDx:null, ringOutDy:null },
+      { b:cpuBey, el:makeBeyEl(cpuBey), x:r*0.70, y:r*0.38, vx:0, vy:0, ang:0, spin:0, max:100*cpuBey.cpuMult, me:false, dir:-1, clashCd:0, kickT:0, recoverT:1.0, orbitCum:0, orbitAng:null, shrinkStart:null, baseUx:null, baseUy:null, baseTx:null, baseTy:null, ringOut:false, ringOutDx:null, ringOutDy:null }
     ];
     P.forEach(function(p){
       p.el.style.transform = "translate("+(p.x-size/2)+"px,"+(p.y-size/2)+"px)";
@@ -893,9 +936,9 @@
   }
 
   /* ===== 動き：タイプ別の周回半径 =====
-     アタック（flat）  : 最初の約2周はスタジアムの約85%の大きな円のまま。
-                         中心まわりの累積角度が2周分（720°）を超えたら
-                         縮小を始め、そこから約5秒で約23%まで寄って
+     アタック（flat）  : 最初の約1.5周はスタジアムの約85%の大きな円のまま。
+                         中心まわりの累積角度が1.5周分（540°）を超えたら
+                         縮小を始め、そこから約3.5秒で約23%まで寄って
                          中心の相手に届く（開始判定は時間ではなく周回数）。
                          縮み切ったあとも目標半径は約23%のままなので、
                          弾かれて外へ出ても再び中心へ戻ってくる
@@ -906,24 +949,27 @@
                          約35%までだけ、ゆるやかに縮む（アタックの
                          ような急な中心寄せはしない）
      全タイプ共通      : 上記のタイプ別半径（base）を土台に、中心まわりを
-                         1周（累積角度360°）したあとは、そこから先の周回で
+                         1周（累積角度360°）したあとは、そこから先で
                          目標半径を下限（約18%）まで smoothstep で滑らかに
-                         縮める。縮み切るまでの周回数はタイプ別で、
-                         アタック／スタミナ／バランスは約14周、防御は
-                         約40周（防御はリングに踏ん張る個性として遅くする。
-                         速くすると中心で粘る持久タイプが防御の接近戦に
-                         削り切られ、相性が大きく崩れるため。シミュレーション
-                         検証済み）。回転が落ちて周回が遅くなるほど縮小も
-                         ゆっくり進むので、持久（decayが遅い）が中心付近で
-                         長く粘る個性とは喧嘩しない。序盤〜中盤はタイプ別の
-                         半径の差が残り、終盤は全ベイが中心付近へ寄って
-                         ぶつかり合う */
+                         縮める。進み具合は「周回ベース」と「時間ベース」の
+                         進んだ方を採用する：周回ベースではアタック／
+                         スタミナ／バランスは約5周、防御は約10周で寄せ切り、
+                         時間ベースでは開始4秒後から約12秒（防御は約22秒）
+                         で寄せ切る。時間ベースを併用するのは、回転が落ちて
+                         周回が遅いベイや、省電力などで描画が遅い環境でも、
+                         序盤のうちに必ず中心へ寄って定期的にぶつかる
+                         ようにするため（周回だけに頼ると、外周を回り続けて
+                         なかなか当たらない時間が長くなっていた）。
+                         防御だけは今も他より遅く、リングに踏ん張る個性を
+                         残すが、差は以前（約40周）よりずっと小さい。
+                         序盤はタイプ別の半径の差が残り、中盤以降は
+                         全ベイが中心付近へ寄ってぶつかり合う */
   function orbitRadius(p, maxD){
     var base;
     if (p.b.tip === "flat"){
       if (p.shrinkStart === null || p.shrinkStart === undefined) base = maxD * 0.85;
       else {
-        var s = Math.min(1, (battleT - p.shrinkStart) / 5);
+        var s = Math.min(1, (battleT - p.shrinkStart) / 3.5);
         base = maxD * (0.85 - 0.62 * s);
       }
     } else if (p.b.tip === "round"){
@@ -937,17 +983,23 @@
     }
     /* 全タイプ共通の漸進縮小：1周を超えた分だけ、下限へ寄せる。
        base が下限以下のタイプ（実質スタミナの終盤など）はそのまま。
-       縮み切るまでの周回数（span）はタイプ別：防御（sharp）だけ
-       約40周と遅い。それ以外は約14周。防御を他と同じ速さで中心へ
-       寄せると、ゆきペンギン対いわゴーレムの相性が大きく崩れる
-       （ねばる無しの勝率が約4割→約1割まで落ちる）ことを
-       シミュレーションで確認したための調整で、防御がリングに
-       踏ん張る個性としても自然 */
+       進み具合 cp は周回ベースと時間ベースの進んだ方：
+         周回ベース … 1周を超えてから span 周で寄せ切る
+                      （防御だけ約10周、それ以外は約5周）
+         時間ベース … 開始4秒後から tSpan 秒で寄せ切る
+                      （防御だけ約22秒、それ以外は約12秒）
+       防御はリングに踏ん張る個性として今も他より遅いが、
+       時間ベースの上限があるので、外周や中間半径に留まり続けて
+       いつまでも当たらない、という状態にはならない */
     var floor = maxD * 0.18;
     if (base <= floor) return base;
-    var span = (p.b.tip === "sharp") ? 40 : 14;
+    var isSharp = (p.b.tip === "sharp");
+    var span = isSharp ? 10 : 5;
     var laps = (p.orbitCum || 0) / (Math.PI * 2);
     var cp = Math.min(1, Math.max(0, (laps - 1) / span));
+    var tSpan = isSharp ? 22 : 12;
+    var tp = Math.min(1, Math.max(0, (battleT - 4) / tSpan));
+    if (tp > cp) cp = tp;
     var csm = cp * cp * (3 - 2 * cp); /* smoothstepで滑らかに */
     return floor + (base - floor) * (1 - csm);
   }
@@ -994,6 +1046,16 @@
     if (v > allowed){
       p.vx *= allowed / v; p.vy *= allowed / v;
     }
+  }
+
+  /* 場外決着の飛び方向を記録する：決着した衝突の「後の速度」
+     （反発＋kick＋swirl 適用済み＝ノックバックそのもの）の向きを
+     単位ベクトルで控える。速度がほぼ無いときは、相手から離れる
+     向き（衝突の法線の反対側）を代わりに使う */
+  function setRingOutDir(p, awayNx, awayNy){
+    var v = Math.hypot(p.vx, p.vy);
+    if (v > 1){ p.ringOutDx = p.vx / v; p.ringOutDy = p.vy / v; }
+    else { p.ringOutDx = awayNx; p.ringOutDy = awayNy; }
   }
 
   /* ===== 物理ループ ===== */
@@ -1056,9 +1118,14 @@
       /* 中心付近の基底保持：中心を横切るように弾かれると、位置から
          計算した接線／外向きの向きが約180°ひっくり返り、目標速度
          自体が反転して「唐突に逆向きへ動き出す」原因になる。
-         中心からベイ半径ほど（r*0.09）以内にいる間は前フレームの
-         基底を使い続け、外に出たときだけ今の位置で基底を更新する */
-      if (d < r * 0.09 && p.baseUx !== null && p.baseUx !== undefined){
+         中心ごく近く（r*0.045）以内にいる間は前フレームの
+         基底を使い続け、外に出たときだけ今の位置で基底を更新する。
+         保持範囲は最小の軌道半径（下限 0.18×maxD ≒ r*0.069）より
+         小さくすること：以前は r*0.09 と広く、中心付近を回る
+         持久タイプの軌道（約 r*0.085〜0.095）がすっぽり範囲内に
+         入って基底が凍結し、円軌道を維持できず外へ流れて
+         目標半径に追随できなかった（実測で確認済みの不具合） */
+      if (d < r * 0.045 && p.baseUx !== null && p.baseUx !== undefined){
         ux = p.baseUx; uy = p.baseUy; tx = p.baseTx; ty = p.baseTy;
       } else {
         p.baseUx = ux; p.baseUy = uy; p.baseTx = tx; p.baseTy = ty;
@@ -1067,17 +1134,17 @@
       /* 周回カウント（全タイプ共通）：中心まわりの累積角度を数える。
          位置の角度の差分（−π〜πに正規化）の絶対値を積み上げる。
          弾かれている間も位置ベースで数えるので、外へ飛ばされても
-         周回として正しく進む。アタックは従来通り、2周分（720°＝4π rad）
+         周回として正しく進む。アタックは従来通り、1.5周分（540°＝3π rad）
          を超えた瞬間の時刻を自分の縮小開始（shrinkStart）として記録
          する。全タイプ共通の「1周後から徐々に縮む」漸進縮小は、
-         orbitRadius 側がこの累積角度（orbitCum）から直接計算する */
+         orbitRadius 側がこの累積角度（orbitCum）と経過時間から計算する */
       var angNow = Math.atan2(dy, dx);
       if (p.orbitAng !== null && p.orbitAng !== undefined){
         var da = angNow - p.orbitAng;
         while (da > Math.PI) da -= Math.PI*2;
         while (da < -Math.PI) da += Math.PI*2;
         p.orbitCum += Math.abs(da);
-        if (p.b.tip === "flat" && p.shrinkStart === null && p.orbitCum >= Math.PI*4) p.shrinkStart = battleT;
+        if (p.b.tip === "flat" && p.shrinkStart === null && p.orbitCum >= Math.PI*3) p.shrinkStart = battleT;
       }
       p.orbitAng = angNow;
 
@@ -1095,18 +1162,37 @@
       } else {
         /* 目標速度＝接線方向の周回＋目標半径へ寄せるバネ、へ滑らかに寄せる */
         var targetR = orbitRadius(p, maxD);
+        /* 相手への接近補正：自分の目標半径が相手の現在半径より
+           大きいときだけ、差の55%を詰めて相手のいる半径へ寄せる。
+           内側にいる側の目標は一切動かさない（持久の「中心で
+           粘る」個性はそのまま残る）。外周と中心で別々の軌道を
+           回り続けて当たらない状態を防ぎ、序盤から数秒以内に
+           ぶつかるようにするための補正。弾かれて外へ出た側が
+           戻る先も相手寄りになるので、再接近も速くなる */
+        if (P.length === 2){
+          var oppP = (p === P[0]) ? P[1] : P[0];
+          var oppD = Math.hypot(oppP.x - cx, oppP.y - cy);
+          if (targetR > oppD) targetR = oppD + (targetR - oppD) * 0.45;
+        }
         /* 引き戻しの強さは全タイプ・全フェーズで通常並みに統一する。
            以前は縮小開始後のアタックだけ pullGain 9／上限 r*1.1 の
            特例があり、ランプが戻り切った瞬間に弾かれた向きと逆へ
            フルパワーで引いて「止まって逆発射」になっていた。
-           特例は廃止：ゲイン3.5／上限 r*0.72 のみ */
-        var pullGain = 3.5, pullCap = r * 0.72;
-        /* 復帰ランプ：弾かれた直後（kickT終了直後）は約1.8秒かけて
+           特例は廃止：ゲイン5.0／上限 r*0.72 のみ（ゲインは成分別
+           操舵の導入に合わせて 3.5→5.0 に強化。目標半径への追随と
+           縮小の追い付きを速くするため） */
+        var pullGain = 5.0, pullCap = r * 0.72;
+        /* 復帰ランプ：弾かれた直後（kickT終了直後）は約1秒かけて
            効きを戻すが、線形ではなく smoothstep（最初はほぼ効かず、
            中盤から徐々に効くイーズイン）にし、半径成分だけでなく
-           接線成分を含む目標速度全体への寄せに適用する */
-        p.recoverT = Math.min(1.8, (p.recoverT || 0) + dt);
-        var ramp01 = p.recoverT / 1.8;
+           接線成分を含む目標速度全体への寄せに適用する。
+           以前は約1.8秒と長く、弾かれたベイが軌道へ戻るまで
+           約2秒さまよい続け、中心に集まる相手とすれ違い続けて
+           「当たらない」時間の主因になっていた（実測で確認）。
+           成分別操舵では成分がゼロを横切っても速度は連続なので、
+           1秒まで短くしても逆発射の心配は小さい */
+        p.recoverT = Math.min(1.0, (p.recoverT || 0) + dt);
+        var ramp01 = p.recoverT / 1.0;
         var ramp = ramp01 * ramp01 * (3 - 2 * ramp01);
         var radialV = (targetR - d) * pullGain;
         var cap = pullCap;
@@ -1114,49 +1200,75 @@
         var os = orbitSpeed(p, r, speedRatio);
         var desVx = tx*os + ux*radialV;
         var desVy = ty*os + uy*radialV;
-        /* ===== 操舵：力そのものを弱くし、向きは連続的に回す =====
-           ・接近レートは dt*0.9（時定数 約1.1秒）。以前の dt*4.6
-             （時定数 約0.22秒）のような急な寄せはしない
-           ・今の速度と目標の向きが大きくずれている（90°超）ときは
-             ベクトルの線形補間をやめ、向きを回転させて寄せる。
-             線形補間だと速度がゼロを突っ切って逆向きに発射されるが、
-             回転なら大きさを保ったまま U ターンになる
-           ・回転速度にも上限（約10 rad/秒 × ランプ連動）を付け、
-             向きの変化は常に連続になる */
-        var oldVx = p.vx, oldVy = p.vy;
-        var curMag = Math.hypot(oldVx, oldVy);
+        /* ===== 操舵：速度を「外向き成分／接線成分」に分けて寄せる =====
+           以前は速度ベクトル全体を目標速度ベクトルへ線形に寄せていた
+           （接近レート dt*0.9、90°超のずれは回転で寄せる方式）。
+           しかし目標ベクトル自体が周回で高速に回転するため位相遅れが
+           大きく、半径方向の寄せが相殺されてしまい、目標半径が
+           縮んでも実位置は大きな円（実測で約0.65×maxD）に張り付いた
+           まま全く中心へ寄らなかった（実測：開始5秒時点で全タイプ
+           実測半径 約0.61〜0.70、目標 0.25〜0.85 とほぼ無関係。
+           周回カウントと目標半径の計算自体は正常だった）。
+           そこで、速度を位置基底（ux,uy／tx,ty。中心付近では保持
+           される基底）で外向き成分 vr と接線成分 vt に分解し、
+           スカラー量としてそれぞれ目標（vr→radialV、vt→os）へ
+           寄せてから合成し直す。ただし基底自体が周回で回るため、
+           そのままだと接線成分が毎フレーム外向き成分へ漏れ出す
+           （遠心効果 vt²/d。実測で最大約3,700px/s²にもなり、
+           寄せだけでは追いつかず逆に壁へ張り付いた）。
+           そのため、寄せる前に「基底がこのフレームで回る角度ぶん
+           だけ速度を先回りで回して」回転による成分の漏れを打ち消す
+           （平行移動）。回す角度は近似式（vt/d×dt）だと実際の
+           基底回転と毎フレーム僅かにずれ、vt が大きいベイでは
+           残差が見かけの外向き速度として積み上がって振動した
+           （実測で確認）ため、出力速度から決まる正確な弦の角度
+           atan2(vt×dt, d＋vr×dt) を使い、出力で再計算して
+           もう一度回す固定点反復で残差を消す。これで周回しながら
+           でも半径誤差が確実に解消され、目標半径へ実際に追随する。
+           寄せの速さは半径方向を速め（dt*4.2）、接線方向は
+           穏やか（dt*2.2）にし、復帰ランプは従来通り両方に掛ける。
+           成分がゼロを横切るときも速度は連続で、逆向き発射には
+           ならない */
         var desMag = Math.hypot(desVx, desVy);
-        if (curMag > 1 && desMag > 1 &&
-            (oldVx*desVx + oldVy*desVy) < 0){
-          /* 向きが90°超ずれている：回転で寄せる */
-          var angCur = Math.atan2(oldVy, oldVx);
-          var angDes = Math.atan2(desVy, desVx);
-          var gapA = angDes - angCur;
-          while (gapA > Math.PI) gapA -= Math.PI*2;
-          while (gapA < -Math.PI) gapA += Math.PI*2;
-          var maxTurn = 10 * dt * (0.3 + 0.7 * ramp);
-          var turnA = gapA;
-          if (turnA > maxTurn) turnA = maxTurn; else if (turnA < -maxTurn) turnA = -maxTurn;
-          var magRate = Math.min(1, dt*0.9) * ramp;
-          var rotMag = curMag + (desMag - curMag) * magRate;
-          var angNew = angCur + turnA;
-          p.vx = Math.cos(angNew) * rotMag;
-          p.vy = Math.sin(angNew) * rotMag;
-        } else {
-          var steer = Math.min(1, dt*0.9) * ramp;
-          p.vx += (desVx - p.vx) * steer;
-          p.vy += (desVy - p.vy) * steer;
+        var rateR = Math.min(1, dt*4.2) * ramp;
+        var rateT = Math.min(1, dt*2.2) * ramp;
+        var vrIn = p.vx*ux + p.vy*uy;
+        var vtIn = p.vx*tx + p.vy*ty;
+        /* 平行移動つき成分寄せ（2回の固定点反復）：
+           回す角度 → 成分を寄せる → 出力速度から角度を再計算、
+           を2回繰り返すと、基底回転と速度の自己整合が取れる。
+           角度の符号には周回方向 dir が必須：位置角度の変化は
+           atan2(dir×vt×dt, d＋vr×dt) で、dir を落とすと逆回りの
+           ベイ（CPU側）だけ回転が逆向きになり、漏れが倍増して
+           壁に張り付く（実測で確認済みの不具合） */
+        var dAng = Math.atan2(p.dir * vtIn * dt, Math.max(1, d + vrIn * dt));
+        var vrWork = vrIn, vtWork = vtIn, vrBase = vrIn, vtBase = vtIn;
+        for (var itSteer = 0; itSteer < 2; itSteer++){
+          var cosA = Math.cos(dAng), sinA = Math.sin(dAng);
+          var rvx = p.vx*cosA - p.vy*sinA;
+          var rvy = p.vx*sinA + p.vy*cosA;
+          vrBase = rvx*ux + rvy*uy;
+          vtBase = rvx*tx + rvy*ty;
+          vrWork = vrBase + (radialV - vrBase) * rateR;
+          vtWork = vtBase + (os - vtBase) * rateT;
+          dAng = Math.atan2(p.dir * vtWork * dt, Math.max(1, d + vrWork * dt));
         }
-        /* 加速度リミット：このフレームの速度変化量そのものに上限を
-           付け、どの経路でも向き・大きさが1フレームで跳ばない
-           ことを保証する（衝突・壁の跳ね返しは対象外で従来通り） */
-        var dvx = p.vx - oldVx, dvy = p.vy - oldVy;
-        var dvL = Math.hypot(dvx, dvy);
-        var maxDv = r * 15 * dt;
-        if (dvL > maxDv && dvL > 0){
-          p.vx = oldVx + dvx * (maxDv / dvL);
-          p.vy = oldVy + dvy * (maxDv / dvL);
-        }
+        /* 加速度リミット（成分版）：1フレームの成分変化量に上限を
+           付け、向き・大きさが跳ばないことを保証する。以前は
+           世界座標の速度変化量に上限（r*15*dt）を付けていたが、
+           それだと平行移動に必要なベクトルの回転そのものまで
+           切り捨ててしまい、速いベイ（ウルフ等）で回転不足→
+           成分漏れ→外周に張り付く不具合になった（実測で確認）。
+           回転は座標変換であって加速ではないので、数えるのは
+           成分の変化だけにする（上限値は従来と同じ r*15*dt） */
+        var limC = r * 15 * dt;
+        if (vrWork - vrBase > limC) vrWork = vrBase + limC; else if (vrBase - vrWork > limC) vrWork = vrBase - limC;
+        if (vtWork - vtBase > limC) vtWork = vtBase + limC; else if (vtBase - vtWork > limC) vtWork = vtBase - limC;
+        p.vx = ux*vrWork + tx*vtWork;
+        p.vy = uy*vrWork + ty*vtWork;
+        /* 加速度リミットは操舵ブロック内の「成分版」に移設した
+           （世界座標の変化量だと平行移動の回転を切り捨ててしまう
+           ため。衝突・壁の跳ね返しは従来通り対象外） */
         /* 速度の「大きさ」の寄せも復帰中はランプに連動させる：
            以前は dt*3.2 でランプと無関係に常時効かせていたため、
            復帰の動きがちぐはぐになっていた。ランプ全開（通常時）は
@@ -1285,7 +1397,8 @@
           /* ヒットストップはダメージ確定後に下で設定する（受けた側の判定に使うため） */
           /* ダメージ：与える側の atk × 受ける側の guard で決まる（両者共通の式）。
              攻撃タイプは atk 1.3 で大きく削るが guard は普通（1.0）。
-             スタミナは atk 0.7 で削りは小さいが guard 1.3 で削られやすい。
+             スタミナは atk 0.7 で削りは小さいが guard は標準（1.0）で、
+             勝ち筋は遅い decay による粘り勝ち（2026-11-22 底上げ）。
              防御は atk 0.9 で削りはほどほど、guard 0.6 で硬い。
              CPUの基礎倍率は与ダメージにも同じだけ乗る */
           var multA = b.me ? 1 : b.b.cpuMult; /* b→a への倍率 */
@@ -1326,9 +1439,13 @@
           a.spin -= dmgA; b.spin -= dmgB;
           /* 場外決着の印：この一撃でゲージが尽きた側は、決着時に
              スタジアムの外へ吹っ飛ぶ。自然減衰で尽きた場合には
-             付けない（従来通りその場で止まる） */
-          if (preSpinA > 0.5 && a.spin <= 0.5) a.ringOut = true;
-          if (preSpinB > 0.5 && b.spin <= 0.5) b.ringOut = true;
+             付けない（従来通りその場で止まる）。
+             飛ぶ向きもここで決める：この時点の速度は衝突後の
+             ノックバック（反発で相手から押し出された向き）なので、
+             その向きを記録しておき、finish 側は中心から外向きでは
+             なく、その反発方向へ飛ばす */
+          if (preSpinA > 0.5 && a.spin <= 0.5){ a.ringOut = true; setRingOutDir(a, -nx, -ny); }
+          if (preSpinB > 0.5 && b.spin <= 0.5){ b.ringOut = true; setRingOutDir(b,  nx,  ny); }
           /* ===== 手応え：ヒットストップ＋震え＋ヒットマーク＋画面振動 =====
              止まる長さは衝撃の強さで変える（通常 約50ms／強い一撃 約110ms）。
              受けた側（受けたダメージが大きい側）を大きく震わせる */
@@ -1482,33 +1599,65 @@
         sparks(loser.x, loser.y, 22, true);
       }, 200);
     } else if (loser.ringOut){
-      /* 場外決着：衝突ダメージでゲージが尽きたベイは、中心から外向きへ
-         大きく吹っ飛んでスタジアムの外へ消える。結果ポップアップ
-         （約1.1秒後）より前に飛び切るよう、飛行は約0.85秒で完了させる。
+      /* 場外決着：衝突ダメージでゲージが尽きたベイは、決着した衝突の
+         ノックバック方向（相手から押し出された向き）へ大きく吹っ飛んで
+         スタジアムの外へ消える。
+         演出は2段構え：まず約0.18秒のヒットストップ級の「タメ」
+         （その場で小刻みに震える。バーストの約200msと同級で、
+         長すぎない長さ）を作り、それから初速の強いイージングで
+         一気に吹っ飛ばす。タメ＋飛行で約0.88秒、結果ポップアップ
+         （約1.1秒後）より前に飛び切る。
          スタジアムは overflow:hidden で外側が切り取られるので、
          決着中だけ visible に切り替える（リセットで戻す） */
-      SFX.shoot(); SFX.spinout();
-      if (navigator.vibrate) navigator.vibrate(60);
+      SFX.clash(true);
+      if (navigator.vibrate) navigator.vibrate(50);
       stadium.style.overflow = "visible";
       var fr = stadium.clientWidth, frad = fr*0.162/2;
-      var fdx = loser.x - fr/2, fdy = loser.y - fr/2;
-      var fdl = Math.hypot(fdx, fdy);
       var fux, fuy;
-      if (fdl > 1){ fux = fdx/fdl; fuy = fdy/fdl; }
-      else { fux = (loser.x <= fr/2) ? 1 : -1; fuy = -0.35; }
-      var flyD = fr * 0.95;
+      if (loser.ringOutDx !== null && loser.ringOutDx !== undefined){
+        /* 決着した衝突で記録したノックバック方向（相手から離れる
+           反発の向き）へ飛ばす。中心から外向きではない */
+        fux = loser.ringOutDx; fuy = loser.ringOutDy;
+      } else {
+        /* 記録が無い場合の予備：従来通り中心から外向き */
+        var fdx = loser.x - fr/2, fdy = loser.y - fr/2;
+        var fdl = Math.hypot(fdx, fdy);
+        if (fdl > 1){ fux = fdx/fdl; fuy = fdy/fdl; }
+        else { fux = (loser.x <= fr/2) ? 1 : -1; fuy = -0.35; }
+      }
+      var flyD = fr * 1.0;
       var fStart = "translate("+(loser.x-frad)+"px,"+(loser.y-frad)+"px) rotate("+loser.ang+"deg)";
       var fEnd = "translate("+(loser.x-frad+fux*flyD)+"px,"+(loser.y-frad+fuy*flyD)+"px) rotate("+(loser.ang+540)+"deg)";
-      if (loser.el.animate){
-        loser.el.animate([
-          { transform:fStart, opacity:1 },
-          { transform:fEnd, opacity:1, offset:.78 },
-          { transform:fEnd, opacity:0 }
-        ], { duration:850, easing:"cubic-bezier(.55,.06,.85,.4)", fill:"forwards" });
-      } else {
-        loser.el.style.transform = fEnd;
-        loser.el.style.opacity = "0";
-      }
+      /* タメ：約0.18秒、その場で震えてから発射する（バーストの
+         震えと同じ仕組み）。発射の瞬間に火花と音で爆発感を足す */
+      var rStart = performance.now();
+      (function rShake(now){
+        if (state !== "end") return;
+        var rt = (now - rStart) / 1000;
+        if (rt < 0.18){
+          var ra = 5 * (1 - rt / 0.18);
+          loser.el.style.transform = "translate("+(loser.x-frad+(Math.random()*2-1)*ra)+"px,"+(loser.y-frad+(Math.random()*2-1)*ra)+"px) rotate("+loser.ang+"deg)";
+          requestAnimationFrame(rShake);
+          return;
+        }
+        loser.el.style.transform = fStart;
+        SFX.shoot(); SFX.spinout();
+        if (navigator.vibrate) navigator.vibrate(60);
+        sparks(loser.x, loser.y, 16, true);
+        ringFx(loser.x, loser.y, true);
+        if (loser.el.animate){
+          /* 初速全開のイージング（最初にぐっと加速して後は流れる）で
+             「どかーん」と弾け飛ぶ。消えるのは最後の2割だけ */
+          loser.el.animate([
+            { transform:fStart, opacity:1 },
+            { transform:fEnd, opacity:1, offset:.8 },
+            { transform:fEnd, opacity:0 }
+          ], { duration:700, easing:"cubic-bezier(.12,.8,.24,1)", fill:"forwards" });
+        } else {
+          loser.el.style.transform = fEnd;
+          loser.el.style.opacity = "0";
+        }
+      })(rStart);
     } else {
       SFX.spinout();
       loser.el.classList.add("wobble");
@@ -1557,6 +1706,7 @@
   /* ===== リセット ===== */
   function reset(){
     state = "pick";
+    document.body.classList.remove("battling");
     hitstopT = 0; shakeT = 0; hitShakeA = 0; hitShakeB = 0;
     stadium.style.transform = "";
     stadium.style.overflow = ""; /* 場外決着で visible にしたのを戻す */
@@ -1588,7 +1738,9 @@
     if (state==="pick" && myBey) preview();
   });
   window.addEventListener("orientationchange", function(){
-    setTimeout(fitCardTexts, 60);
+    /* 回転でレイアウト（縦積み⇔横向き2カラム）が切り替わるので、
+       スタジアムの径も測り直す */
+    setTimeout(function(){ fitStadium(); fitCardTexts(); }, 60);
   });
   fitStadium();
 })();
