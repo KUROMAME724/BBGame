@@ -228,6 +228,10 @@
   /* ねばり中は自分のゲージも緑に光って、効いているのがひと目で分かる */
   #gYou.gutsOn .bar{border-color:#4ade80; box-shadow:0 0 16px rgba(74,222,128,.9), 0 2px 8px rgba(0,0,0,.15); animation:gpulse .5s ease-in-out infinite alternate;}
   @keyframes gpulse{from{box-shadow:0 0 8px rgba(74,222,128,.6), 0 2px 8px rgba(0,0,0,.15);}to{box-shadow:0 0 22px rgba(74,222,128,1), 0 2px 8px rgba(0,0,0,.15);}}
+  /* 連打で効きが少し上がっている間だけ、光がほんのり強く・温かくなる（派手にはしない） */
+  #gYou.gutsOn.mash .bar{border-color:#bbf7d0; box-shadow:0 0 26px rgba(74,222,128,1), 0 0 10px rgba(250,204,21,.5), 0 2px 8px rgba(0,0,0,.15); animation-duration:.34s;}
+  #gutsBtn.mash{box-shadow:0 7px 0 rgba(8,12,22,.38), 0 0 30px rgba(74,222,128,1), 0 0 10px rgba(250,204,21,.45), 0 14px 28px rgba(0,0,0,.2);}
+  .bey.guts.mash svg{filter:drop-shadow(0 0 22px rgba(74,222,128,1)) drop-shadow(0 0 7px rgba(250,204,21,.55)) drop-shadow(0 8px 10px rgba(0,0,0,.45));}
   #againBtn2{background-image:linear-gradient(180deg, rgba(255,255,255,.3), rgba(255,255,255,0) 46%), linear-gradient(180deg,#ffb03a,#f07f13 55%,#d95f06); font-size:clamp(20px,5.6vw,32px); white-space:nowrap; overflow:hidden;}
   .hintline{text-align:center; font-size:clamp(13px,3.6vw,18px); font-weight:700; letter-spacing:.03em; color:var(--sub); min-height:1.4em; max-width:100%; overflow-wrap:break-word; padding:0 2px;}
 
@@ -526,7 +530,62 @@
      gutsLevel 0〜1（減衰カット率 = level × 0.9、被ダメージ軽減 = level × 0.2）、
      gutsT は残り時間 */
   var gutsLevel = 0, gutsT = 0;
+  /* 連打（マッシュ）計測：発動中のタップ時刻を直近1秒だけ保持し、
+     その頻度から 0〜1 の mashFactor を作る。効果の上乗せは最大でも
+     現行の+3割まで（下の gutsPower / gutsAtkMul でクランプ）。
+     発動のたびに tapTimes はリセットされる */
+  var gutsTapTimes = [], gutsMashFactor = 0;
   var gutsBtn = document.getElementById("gutsBtn");
+  /* 直近1秒のタップ数から連打の速さを出す：
+     1秒に発動タップだけ（追加0回）=0、追加4回以上で最大1。
+     ゆっくり押す／押しっぱなし（追加タップなし）では 0 のまま＝現行水準 */
+  function updateGutsMash(nowSec){
+    while (gutsTapTimes.length && nowSec - gutsTapTimes[0] > 1.0) gutsTapTimes.shift();
+    var extra = Math.max(0, gutsTapTimes.length - 1);
+    gutsMashFactor = Math.max(0, Math.min(1, extra / 4));
+    var hot = (gutsT > 0 && gutsMashFactor >= 0.5);
+    gYouEl.classList.toggle("mash", hot);
+    gutsBtn.classList.toggle("mash", hot);
+    if (P.length) P[0].el.classList.toggle("mash", hot);
+    return gutsMashFactor;
+  }
+  /* ねばりの実効パワー：level に連打ボーナス（最大+30%）を掛け、
+     1.3 で頭打ちにする。減衰カットと被ダメ軽減はこれを使う */
+  function gutsPower(){
+    return Math.min(1.3, gutsLevel * (1 + 0.3 * gutsMashFactor));
+  }
+  /* ねばり中の攻撃力倍率：基本 ×1.10（level比例）、連打が速いほど
+     最大 ×1.25 まで微増。がっつりは上げない */
+  function gutsAtkMul(){
+    if (gutsT <= 0 || gutsLevel <= 0) return 1;
+    return 1 + gutsLevel * (0.10 + 0.15 * gutsMashFactor);
+  }
+  /* ===== 序盤ランプ＋追いつき補正（両者共通・対称） =====
+     課題：序盤に当たりまくると衝突ダメージだけで大きく差が開き、
+     「残りが少ないほど効く」ねばるでは取り返せなかった。
+     (1) 序盤ランプ：開始直後の衝突ダメージを約70%に抑え、
+         約9秒かけて smoothstep で通常（100%）へ滑らかに上げる。
+         自然減衰には掛けない（持久の個性はそのまま）。
+         序盤に集中被弾しても即決着にならず、試合が形になる時間を稼ぐ。
+     (2) 追いつき補正：ゲージ割合の差が 0.15 を超えたときだけ、
+         負けている側の被ダメージを少しだけ軽減する。
+         軽減 = (差-0.15)×0.4、上限 18%。差 0.40 で約10%、
+         差 0.60 以上で上限 18%。勝っている側には何も掛からず、
+         逆転が保証されるほど強くはしない（あくまで差の拡大を緩める）。
+         ねばり（最大20%軽減＋減衰カット）とは別枠で重なるが、
+         両方合わせても序盤の圧倒を「接戦に寄せる」程度に留まる想定 */
+  function earlyDmgFactor(){
+    if (battleT >= 9) return 1;
+    var p = Math.max(0, battleT / 9);
+    var s = p * p * (3 - 2 * p);
+    return 0.7 + 0.3 * s;
+  }
+  function catchUpCut(myRatio, oppRatio){
+    var gap = oppRatio - myRatio;
+    if (gap <= 0.15) return 0;
+    var cut = (gap - 0.15) * 0.4;
+    return cut > 0.18 ? 0.18 : cut;
+  }
 
   /* スタジアムを空きスペースにぴったり合わせる */
   var stageWrap = document.getElementById("stageWrap");
@@ -648,22 +707,40 @@
       gutsBtn.classList.add("dud");
       return;
     }
-    gutsLevel = Math.min(1, gutsLevel + strength);
-    gutsT = 4.5;
-    SFX.guts();
+    var nowSec = performance.now() / 1000;
+    var isNewActivation = !(gutsT > 0);
+    if (isNewActivation){
+      /* 発動のたびに連打カウントはリセットする */
+      gutsTapTimes = [nowSec];
+      gutsMashFactor = 0;
+      gutsLevel = Math.min(1, gutsLevel + strength);
+      gutsT = 4.5;
+      SFX.guts();
+    } else {
+      /* 発動中の連打：頻度だけを上げる。持続時間は伸ばさない
+         （伸ばすと連打し続けるだけで粘りが無限に続いてしまう）。
+         level の重なりは従来通り上限1で頭打ち */
+      gutsTapTimes.push(nowSec);
+      if (gutsTapTimes.length > 12) gutsTapTimes.splice(0, gutsTapTimes.length - 12);
+      gutsLevel = Math.min(1, gutsLevel + strength);
+      updateGutsMash(nowSec);
+      /* 連打が速いほど少しだけ高い音で、効きが上がったことを知らせる */
+      tone(523 + 220 * gutsMashFactor, .09, "triangle", .16);
+    }
     if (navigator.vibrate) navigator.vibrate(20);
     gutsBtn.classList.add("pop","on");
     gutsBtn.textContent = "ねばってる！";
     gYouEl.classList.add("gutsOn");
     me.el.classList.add("guts");
-    sparks(me.x, me.y, 6);
+    sparks(me.x, me.y, isNewActivation ? 6 : 3);
   });
   /* ねばりが切れたときの見た目を全部戻す */
   function gutsOff(){
-    gutsBtn.classList.remove("on");
+    gutsTapTimes = []; gutsMashFactor = 0;
+    gutsBtn.classList.remove("on","mash");
     gutsBtn.textContent = "ねばる！";
-    gYouEl.classList.remove("gutsOn");
-    if (P.length) P[0].el.classList.remove("guts");
+    gYouEl.classList.remove("gutsOn","mash");
+    if (P.length) P[0].el.classList.remove("guts","mash");
   }
 
   function startCountdown(){
@@ -830,6 +907,9 @@
       if (gutsT <= 0){
         gutsT = 0; gutsLevel = 0;
         gutsOff();
+      } else {
+        /* 連打が止まれば頻度は自然に落ちて効果も現行水準へ戻る */
+        updateGutsMash(performance.now() / 1000);
       }
     }
     var r = stadium.clientWidth, size = r*0.162, rad = size/2;
@@ -847,7 +927,9 @@
       /* ねばりバフ中はプレイヤーの自然減衰がさらに最大90%カットされる。
          衝突ダメージの軽減は衝突処理側で適用。CPUにはバフなし */
       var dec = dt * p.b.decay * (0.35 + 0.65 * (p.spin / p.max));
-      if (p.me && gutsT > 0) dec *= (1 - 0.9 * gutsLevel);
+      /* 連打ボーナス込みの実効パワーを使う。カット率は最大でも
+         94%で止める（+30%上乗せでも減衰がゼロにはならない） */
+      if (p.me && gutsT > 0) dec *= (1 - Math.min(0.94, 0.9 * gutsPower()));
       p.spin -= dec;
       if (p.spin < 0) p.spin = 0;
       if (p.clashCd > 0) p.clashCd -= dt;
@@ -1094,15 +1176,35 @@
           var multB = a.me ? 1 : a.b.cpuMult; /* a→b への倍率 */
           var dmgA = (3.5 + Math.random()*4.5) * b.b.atk * (hard?1.5:1.1) * a.b.guard * multA;
           var dmgB = (3.5 + Math.random()*4.5) * a.b.atk * (hard?1.5:1.1) * b.b.guard * multB;
+          /* 序盤ランプ：開始〜約9秒は衝突ダメージ全体を 0.70→1.00 に
+             滑らかに上げる（両者同じ倍率なので相性は崩れない） */
+          var earlyMul = earlyDmgFactor();
+          dmgA *= earlyMul; dmgB *= earlyMul;
+          /* 追いつき補正：この一撃を受ける直前のゲージ割合で判定し、
+             負けている側の被ダメージだけを最大18%軽減する */
+          var ratioForCutA = a.spin / a.max, ratioForCutB = b.spin / b.max;
+          var cutA = catchUpCut(ratioForCutA, ratioForCutB);
+          var cutB = catchUpCut(ratioForCutB, ratioForCutA);
+          if (cutA > 0) dmgA *= (1 - cutA);
+          if (cutB > 0) dmgB *= (1 - cutB);
           /* ねばり中はプレイヤーの受けるダメージも軽減される（最大20%）。
              ゲージ減少の主因は衝突なので、ここに効かせないと体感できない。
              軽減率は以前60%だったが、ペンギン対ゴーレムで「ねばる」を
              使うと約9割勝ててしまい圧勝すぎたため20%まで下げた
              （シミュレーション検証：同対戦のねばる勝率 約74%、
-             ねばる無しは約3割・接戦のまま不変） */
+             ねばる無しは約3割・接戦のまま不変）。
+             連打が速い間だけ、軽減は gutsPower() 経由で最大26%まで
+             ほんの少しだけ深くなる（+3割が上限） */
           if (gutsT > 0){
-            if (a.me) dmgA *= (1 - 0.2 * gutsLevel);
-            if (b.me) dmgB *= (1 - 0.2 * gutsLevel);
+            var dmgCut = Math.min(0.26, 0.2 * gutsPower());
+            if (a.me) dmgA *= (1 - dmgCut);
+            if (b.me) dmgB *= (1 - dmgCut);
+            /* ねばり中は自分の攻撃力も少し上がる：基本×1.10、
+               連打最速でも×1.25まで（gutsAtkMul でクランプ済み）。
+               効くのは発動中の衝突だけなので影響は限定的 */
+            var atkMulNow = gutsAtkMul();
+            if (a.me) dmgB *= atkMulNow;
+            if (b.me) dmgA *= atkMulNow;
           }
           a.spin -= dmgA; b.spin -= dmgB;
           /* ===== 手応え：ヒットストップ＋震え＋ヒットマーク＋画面振動 =====
