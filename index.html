@@ -118,6 +118,8 @@
     /* 外周は金属リムの段重ね（明→暗→明）でスタジアムの縁を表現する */
     box-shadow:0 24px 48px rgba(5,10,22,.5), 0 0 0 6px #3b4c6b, 0 0 0 11px #131e31, 0 0 0 14px #5a6f92, inset 0 0 0 10px var(--ring), inset 0 0 60px rgba(0,0,0,.45);
     overflow:hidden; touch-action:none;
+    /* 画面振動で transform を動かすので、専用レイヤーにして再描画を避ける */
+    will-change:transform;
   }
   #stadium::before{
     content:""; position:absolute; inset:16%; border-radius:50%;
@@ -131,10 +133,12 @@
     position:absolute; width:16.2%; aspect-ratio:1/1; left:0; top:0;
     will-change:transform; pointer-events:none; z-index:3;
   }
-  .bey svg{width:100%; height:100%; display:block; filter:drop-shadow(0 8px 10px rgba(0,0,0,.45));}
-  .bey.strong svg{filter:drop-shadow(0 0 16px rgba(255,190,0,.95)) drop-shadow(0 8px 10px rgba(0,0,0,.45));}
+  /* ベイに付随する影・光輪は付けない（ユーザー指示で全廃）。
+     以前の楕円グラデーション影や box-shadow の光輪は、見た目が
+     重いだけでなく描画負荷にもなるため削除した */
+  .bey svg{width:100%; height:100%; display:block;}
   .bey.wobble svg{animation:wob .28s ease-in-out infinite alternate;}
-  @keyframes wob{from{margin-left:-4px;}to{margin-left:4px;}}
+  @keyframes wob{from{transform:translateX(-4px);}to{transform:translateX(4px);}}
   .bey .piece{position:absolute; inset:0; transition:transform .7s cubic-bezier(.2,.8,.3,1), opacity .7s;}
   .spark{
     position:absolute; width:14px; height:14px; margin:-7px 0 0 -7px; border-radius:50%;
@@ -186,7 +190,9 @@
   .gauge{flex:1;}
   /* ゲージは金属の溝にエネルギーが流れる見た目：暗い溝＋斜めストライプの充填 */
   .gauge .bar{height:24px; border-radius:7px; background:#0b1322; overflow:hidden; border:2px solid var(--line); box-shadow:inset 0 3px 7px rgba(0,0,0,.65), 0 2px 6px rgba(0,0,0,.2);}
-  .gauge .fill{height:100%; width:100%; transition:width .18s linear;}
+  /* transition は付けない：毎フレームJSで幅を更新するので、
+     transition があるとアニメーション処理が二重に走って重くなる */
+  .gauge .fill{height:100%; width:100%;}
   #gYou .fill{background-image:repeating-linear-gradient(115deg, rgba(255,255,255,.22) 0 8px, transparent 8px 16px), linear-gradient(90deg,#4cc9ff,#2563eb);}
   #gCpu .fill{background-image:repeating-linear-gradient(115deg, rgba(255,255,255,.22) 0 8px, transparent 8px 16px), linear-gradient(90deg,#ffb03a,#e63312);}
   .gauge .who{font-family:var(--disp); font-size:17px; font-weight:900; letter-spacing:.08em; text-align:center; margin-top:4px; white-space:nowrap; overflow:hidden; max-width:100%;}
@@ -204,6 +210,9 @@
     border:none; cursor:pointer; font-family:var(--disp); font-weight:900; color:#fff;
     border-radius:16px; min-height:76px; font-size:clamp(26px,6.5vw,36px);
     letter-spacing:.06em; padding:10px 18px;
+    /* タップ遅延とダブルタップズーム待ちをボタン側でも排除する
+       （body側の設定だけでは要素単位で効かない端末があるため） */
+    touch-action:manipulation; -webkit-touch-callout:none;
     box-shadow:0 7px 0 rgba(8,12,22,.38), 0 16px 30px rgba(8,12,22,.28);
     transition:transform .08s ease, box-shadow .08s ease, filter .15s;
   }
@@ -224,14 +233,14 @@
   @keyframes gpop{0%{transform:scale(1.1);}100%{transform:scale(1);}}
   #gutsBtn.dud{animation:gdud .3s ease;}
   @keyframes gdud{0%,100%{transform:translateX(0);}25%{transform:translateX(-6px);}75%{transform:translateX(6px);}}
-  .bey.guts svg{filter:drop-shadow(0 0 18px rgba(74,222,128,.95)) drop-shadow(0 8px 10px rgba(0,0,0,.45));}
+  /* ベイ側のねばり光輪（box-shadow）は影・光表現の全廃に合わせて削除。
+     ねばり中かどうかはゲージとボタンの光で示す（下の #gYou.gutsOn） */
   /* ねばり中は自分のゲージも緑に光って、効いているのがひと目で分かる */
   #gYou.gutsOn .bar{border-color:#4ade80; box-shadow:0 0 16px rgba(74,222,128,.9), 0 2px 8px rgba(0,0,0,.15); animation:gpulse .5s ease-in-out infinite alternate;}
   @keyframes gpulse{from{box-shadow:0 0 8px rgba(74,222,128,.6), 0 2px 8px rgba(0,0,0,.15);}to{box-shadow:0 0 22px rgba(74,222,128,1), 0 2px 8px rgba(0,0,0,.15);}}
   /* 連打で効きが少し上がっている間だけ、光がほんのり強く・温かくなる（派手にはしない） */
   #gYou.gutsOn.mash .bar{border-color:#bbf7d0; box-shadow:0 0 26px rgba(74,222,128,1), 0 0 10px rgba(250,204,21,.5), 0 2px 8px rgba(0,0,0,.15); animation-duration:.34s;}
   #gutsBtn.mash{box-shadow:0 7px 0 rgba(8,12,22,.38), 0 0 30px rgba(74,222,128,1), 0 0 10px rgba(250,204,21,.45), 0 14px 28px rgba(0,0,0,.2);}
-  .bey.guts.mash svg{filter:drop-shadow(0 0 22px rgba(74,222,128,1)) drop-shadow(0 0 7px rgba(250,204,21,.55)) drop-shadow(0 8px 10px rgba(0,0,0,.45));}
   #againBtn2{background-image:linear-gradient(180deg, rgba(255,255,255,.3), rgba(255,255,255,0) 46%), linear-gradient(180deg,#ffb03a,#f07f13 55%,#d95f06); font-size:clamp(20px,5.6vw,32px); white-space:nowrap; overflow:hidden;}
   .hintline{text-align:center; font-size:clamp(13px,3.6vw,18px); font-weight:700; letter-spacing:.03em; color:var(--sub); min-height:1.4em; max-width:100%; overflow-wrap:break-word; padding:0 2px;}
 
@@ -472,6 +481,31 @@
     src.connect(f); f.connect(g); g.connect(ac.destination);
     src.start(t);
   }
+  /* ===== ねばり連打音（タップ主体・持続音なし） =====
+     発動中のタップのたびに、短い電子音が音階を1段ずつ上がる。
+     音階はド・レ・ミ・ソ・ラの5音階を2オクターブ分並べただけの
+     自前の段階設定（特定の曲のメロディの模倣ではない）。
+     連打係数が最大に達したら、一度だけキラキラした短い
+     上昇アルペジオ（ピロリロリン的な4音）を鳴らす。
+     発動が終わる／時間切れで段階はリセットされる。
+     音量は衝突音より控えめに抑える */
+  var GUTS_SCALE = [523.25, 587.33, 659.25, 783.99, 880.00, 1046.50, 1174.66, 1318.51, 1567.98, 1760.00];
+  var gutsStep = 0, gutsArpDone = false;
+  function gutsTapBlip(){
+    var f = GUTS_SCALE[Math.min(gutsStep, GUTS_SCALE.length - 1)];
+    tone(f, .15, "triangle", .13);
+    tone(f * 2, .09, "sine", .045);
+    if (gutsStep < GUTS_SCALE.length - 1) gutsStep++;
+  }
+  function gutsArpeggio(){
+    if (gutsArpDone) return;
+    gutsArpDone = true;
+    var notes = [1046.50, 1318.51, 1567.98, 2093.00];
+    for (var i = 0; i < notes.length; i++){
+      tone(notes[i], .2, "triangle", .12, null, i * 0.055);
+      tone(notes[i] * 2, .12, "sine", .04, null, i * 0.055);
+    }
+  }
   var SFX = {
     pick:   function(){ tone(660,.12,"triangle",.22); tone(990,.16,"triangle",.22,null,.08); },
     count:  function(){ tone(440,.14,"square",.16); },
@@ -491,7 +525,6 @@
     },
     burst:  function(){ noise(.55,.5,700); tone(220,.5,"sawtooth",.22,40); tone(1200,.2,"square",.15,200,.03); },
     spinout:function(){ tone(700,.7,"sine",.18,90); },
-    guts:   function(){ tone(392,.14,"triangle",.22); tone(523,.16,"triangle",.22,null,.07); tone(659,.2,"triangle",.2,null,.14); },
     dud:    function(){ tone(196,.15,"square",.12,150); },
     win:    function(){ [523,659,784,1046].forEach(function(f,i){ tone(f,.28,"triangle",.24,null,i*.13); }); noise(.4,.08,4000,.5); },
     lose:   function(){ [392,330,262].forEach(function(f,i){ tone(f,.3,"triangle",.2,null,i*.16); }); }
@@ -692,9 +725,15 @@
        残り30%以下 … 最大（strength 1）
      連続押しで level が重なるが上限1で頭打ち（減衰カット最大90%、
      被ダメージ軽減最大20%）。持続は約4.5秒で、押すたびに残り時間が戻る。
-     ゲージ自体は回復しない */
+     ゲージ自体は回復しない。
+     発動は click ではなく pointerdown で受ける：click は指を離すまで
+     発火せず、端末によっては遅延も乗るため連打が取りこぼされていた。
+     pointerdown なら触れた瞬間に発動・カウントでき、見た目と音の
+     フィードバックもその場で出る。直後の click は二重発火ガードで
+     捨て、ポインターの無い操作（キーボード等）の click だけ通す */
   var gYouEl = document.getElementById("gYou");
-  gutsBtn.addEventListener("click", function(){
+  var lastGutsPointerAt = 0;
+  function gutsPress(){
     if (state !== "battle" || !P.length) return;
     audio();
     var me = P[0];
@@ -710,12 +749,13 @@
     var nowSec = performance.now() / 1000;
     var isNewActivation = !(gutsT > 0);
     if (isNewActivation){
-      /* 発動のたびに連打カウントはリセットする */
+      /* 発動のたびに連打カウントと音階の段階はリセットする */
       gutsTapTimes = [nowSec];
       gutsMashFactor = 0;
+      gutsStep = 0; gutsArpDone = false;
       gutsLevel = Math.min(1, gutsLevel + strength);
       gutsT = 4.5;
-      SFX.guts();
+      gutsTapBlip();
     } else {
       /* 発動中の連打：頻度だけを上げる。持続時間は伸ばさない
          （伸ばすと連打し続けるだけで粘りが無限に続いてしまう）。
@@ -724,8 +764,10 @@
       if (gutsTapTimes.length > 12) gutsTapTimes.splice(0, gutsTapTimes.length - 12);
       gutsLevel = Math.min(1, gutsLevel + strength);
       updateGutsMash(nowSec);
-      /* 連打が速いほど少しだけ高い音で、効きが上がったことを知らせる */
-      tone(523 + 220 * gutsMashFactor, .09, "triangle", .16);
+      /* 連打のたびに音階が1段上がる短い電子音を鳴らす。
+         連打係数が最大に届いたら、一度だけ上昇アルペジオ */
+      gutsTapBlip();
+      if (gutsMashFactor >= 1) gutsArpeggio();
     }
     if (navigator.vibrate) navigator.vibrate(20);
     gutsBtn.classList.add("pop","on");
@@ -733,9 +775,20 @@
     gYouEl.classList.add("gutsOn");
     me.el.classList.add("guts");
     sparks(me.x, me.y, isNewActivation ? 6 : 3);
+  }
+  gutsBtn.addEventListener("pointerdown", function(){
+    lastGutsPointerAt = performance.now();
+    gutsPress();
   });
-  /* ねばりが切れたときの見た目を全部戻す */
+  gutsBtn.addEventListener("click", function(){
+    /* pointerdown 直後の click は二重発火になるので捨てる。
+       pointerdown を経ない click（キーボード操作など）だけ通す */
+    if (performance.now() - lastGutsPointerAt < 700) return;
+    gutsPress();
+  });
+  /* ねばりが切れたときの見た目を全部戻す（音階の段階もリセット） */
   function gutsOff(){
+    gutsStep = 0; gutsArpDone = false;
     gutsTapTimes = []; gutsMashFactor = 0;
     gutsBtn.classList.remove("on","mash");
     gutsBtn.textContent = "ねばる！";
@@ -769,7 +822,8 @@
     P.forEach(function(p){
       p.el.style.transform = "translate("+(p.x-size/2)+"px,"+(p.y-size/2)+"px)";
     });
-    /* 金色の光と王冠はボス戦だけ。通常戦の相手は通常表示 */
+    /* ボス戦の印はゲージの名前（「ボス あいて」）だけ。
+       ベイ自体の光輪は影・光表現の全廃で付けない */
     if (cpuStrong) P[1].el.classList.add("strong");
     var whoCpu = document.querySelector("#gCpu .who");
     whoCpu.textContent = cpuStrong ? "ボス あいて" : "あいて";
@@ -1259,6 +1313,11 @@
   }
 
   function sparks(x,y,n,hard){
+    /* 同時に出る火花の総数に上限を付ける（iPadでの描画負荷対策）。
+       上限に達していたら新しい火花は出さない */
+    var liveSparks = stadium.querySelectorAll(".spark").length;
+    if (liveSparks >= 42) return;
+    if (liveSparks + n > 42) n = 42 - liveSparks;
     for (var i=0;i<n;i++){
       var s = document.createElement("div");
       s.className = "spark" + (hard && i%3===0 ? " big" : "");
@@ -1296,10 +1355,15 @@
   /* ===== ゲージ ===== */
   var fillYou = document.querySelector("#gYou .fill");
   var fillCpu = document.querySelector("#gCpu .fill");
+  var lastGaugeYou = -1, lastGaugeCpu = -1;
   function updateGauges(){
     if (!P.length) return;
-    fillYou.style.width = Math.max(0, P[0].spin/P[0].max*100) + "%";
-    fillCpu.style.width = Math.max(0, P[1].spin/P[1].max*100) + "%";
+    /* 幅がほとんど変わっていないフレームでは書き換えない
+       （毎フレームのスタイル再計算と再描画を減らす） */
+    var wy = Math.max(0, P[0].spin/P[0].max*100);
+    var wc = Math.max(0, P[1].spin/P[1].max*100);
+    if (Math.abs(wy - lastGaugeYou) >= 0.3 || (wy <= 0 && lastGaugeYou > 0)){ fillYou.style.width = wy + "%"; lastGaugeYou = wy; }
+    if (Math.abs(wc - lastGaugeCpu) >= 0.3 || (wc <= 0 && lastGaugeCpu > 0)){ fillCpu.style.width = wc + "%"; lastGaugeCpu = wc; }
   }
 
   /* ===== 終了 ===== */
