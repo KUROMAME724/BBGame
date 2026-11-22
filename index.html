@@ -186,7 +186,9 @@
   @keyframes cpop{0%{transform:scale(1.7) rotate(-5deg);}100%{transform:scale(1) rotate(-3deg);}}
 
   /* ---------- たいりょくゲージ ---------- */
-  #gauges{width:min(92vw,720px); display:none; gap:10px;}
+  /* ゲージ／操作欄はスタジアムより前面に固定する：万一スタジアムが
+     はみ出してもゲージが下に潜って隠れないようにする */
+  #gauges{width:min(92vw,720px); display:none; gap:10px; position:relative; z-index:5;}
   .gauge{flex:1;}
   /* ゲージは金属の溝にエネルギーが流れる見た目：暗い溝＋斜めストライプの充填 */
   .gauge .bar{height:24px; border-radius:7px; background:#0b1322; overflow:hidden; border:2px solid var(--line); box-shadow:inset 0 3px 7px rgba(0,0,0,.65), 0 2px 6px rgba(0,0,0,.2);}
@@ -205,7 +207,7 @@
   }
 
   /* ---------- ボタン ---------- */
-  #controls{width:min(92vw,720px); display:flex; flex-direction:column; gap:10px; align-items:stretch;}
+  #controls{width:min(92vw,720px); display:flex; flex-direction:column; gap:10px; align-items:stretch; position:relative; z-index:5;}
   .bigbtn{
     border:none; cursor:pointer; font-family:var(--disp); font-weight:900; color:#fff;
     border-radius:16px; min-height:76px; font-size:clamp(26px,6.5vw,36px);
@@ -348,7 +350,11 @@
        round（スタミナ）   = 基本は真ん中、小さな円だけ
        sharp（防御）       = その中間、中くらいの半径で穏やかに周回
        balance（バランス） = 中くらいの半径（約55%）で回り、終盤に
-                             約35%までゆるやかにだけ縮む */
+                             約35%までゆるやかにだけ縮む
+     そのうえ全タイプ共通で、中心まわりを1周したら、そこから先は
+     半径がだんだん短くなって中心へらせん状に寄っていく
+     （下限は約18%。タイプ別の半径の個性は序盤〜中盤に残り、
+     終盤は全ベイが中心付近でぶつかり合う） */
   /* 全9種（攻撃3／持久2／防御2／バランス2）。タイプの土台は共通マトリクス：
        アタック   = atk高め／decay速め／周回は大回り→縮小（flat）
        スタミナ   = decay遅め／guard受けやすい（大きめ）／中心寄り（round）
@@ -620,12 +626,15 @@
     return cut > 0.18 ? 0.18 : cut;
   }
 
-  /* スタジアムを空きスペースにぴったり合わせる */
+  /* スタジアムを空きスペースにぴったり合わせる。
+     径にはリム（box-shadowの段重ね最大14px）と落影ぶんの余白として
+     上下左右合計40pxを差し引く：本体の箱だけ合わせると、見た目の
+     縁が下のゲージにかぶって隠してしまうため */
   var stageWrap = document.getElementById("stageWrap");
   function fitStadium(){
     var w = stageWrap.clientWidth, h = stageWrap.clientHeight;
     if (!w || !h) return;
-    var d = Math.max(180, Math.min(w, h, 780));
+    var d = Math.max(180, Math.min(w, h, 780) - 40);
     stadium.style.width = d + "px";
     stadium.style.height = d + "px";
   }
@@ -800,9 +809,15 @@
     state = "count";
     hitstopT = 0; shakeT = 0; hitShakeA = 0; hitShakeB = 0;
     stadium.style.transform = "";
+    stadium.style.overflow = "";
     battleT = 0;
     gutsLevel = 0; gutsT = 0;
-    gutsBtn.style.display = "none";
+    /* ねばるボタンはカウントダウン中から場所だけ確保する（見た目だけ隠す）。
+       display:none のまま径を測ると、バトル開始でボタンが出たときに
+       下段が約78px伸びて画面が縮み、スタジアムが大きいまま下へ
+       はみ出して相手のゲージにかぶってしまうため */
+    gutsBtn.style.display = "block";
+    gutsBtn.style.visibility = "hidden";
     gutsOff();
     shootBtn.style.display = "none";
     resultEl.style.display = "none";
@@ -816,8 +831,8 @@
     var r = stadium.clientWidth, size = r*0.162;
     /* プレイヤーはゲージ100。CPUは基礎倍率ぶんだけ上限が大きい */
     P = [
-      { b:myBey,  el:makeBeyEl(myBey),  x:r*0.30, y:r*0.62, vx:0, vy:0, ang:0, spin:0, max:100,               me:true,  dir:1,  clashCd:0, kickT:0, recoverT:1.8, orbitCum:0, orbitAng:null, shrinkStart:null, baseUx:null, baseUy:null, baseTx:null, baseTy:null },
-      { b:cpuBey, el:makeBeyEl(cpuBey), x:r*0.70, y:r*0.38, vx:0, vy:0, ang:0, spin:0, max:100*cpuBey.cpuMult, me:false, dir:-1, clashCd:0, kickT:0, recoverT:1.8, orbitCum:0, orbitAng:null, shrinkStart:null, baseUx:null, baseUy:null, baseTx:null, baseTy:null }
+      { b:myBey,  el:makeBeyEl(myBey),  x:r*0.30, y:r*0.62, vx:0, vy:0, ang:0, spin:0, max:100,               me:true,  dir:1,  clashCd:0, kickT:0, recoverT:1.8, orbitCum:0, orbitAng:null, shrinkStart:null, baseUx:null, baseUy:null, baseTx:null, baseTy:null, ringOut:false },
+      { b:cpuBey, el:makeBeyEl(cpuBey), x:r*0.70, y:r*0.38, vx:0, vy:0, ang:0, spin:0, max:100*cpuBey.cpuMult, me:false, dir:-1, clashCd:0, kickT:0, recoverT:1.8, orbitCum:0, orbitAng:null, shrinkStart:null, baseUx:null, baseUy:null, baseTx:null, baseTy:null, ringOut:false }
     ];
     P.forEach(function(p){
       p.el.style.transform = "translate("+(p.x-size/2)+"px,"+(p.y-size/2)+"px)";
@@ -849,6 +864,10 @@
   function launch(){
     state = "battle";
     gutsBtn.style.display = "block";
+    gutsBtn.style.visibility = "visible";
+    /* 最終レイアウト（ねばるボタン表示後）で径を測り直してから
+       物理の r を読む：表示径と物理径を常に一致させる */
+    fitStadium();
     var r = stadium.clientWidth;
     P.forEach(function(p){
       p.spin = p.max;
@@ -858,7 +877,7 @@
       var R = orbitRadius(p, maxD);
       var a = p.me ? Math.PI*0.75 : Math.PI*1.75;
       p.x = cx + Math.cos(a)*R; p.y = cy + Math.sin(a)*R;
-      var sp = r * 1.04;
+      var sp = r * 1.14; /* 初速も巡航速度の底上げ（約1.1倍）に合わせる */
       p.vx = -Math.sin(a)*sp*p.dir; p.vy = Math.cos(a)*sp*p.dir;
       /* 周回カウントをリセット：中心まわりの累積角度と縮小開始時刻 */
       p.orbitCum = 0;
@@ -885,26 +904,67 @@
      防御（sharp）     : 約45%の中くらいの円で穏やかに周回
      バランス（balance）: 約55%の中くらいの円。終盤（12秒〜24秒）で
                          約35%までだけ、ゆるやかに縮む（アタックの
-                         ような急な中心寄せはしない） */
+                         ような急な中心寄せはしない）
+     全タイプ共通      : 上記のタイプ別半径（base）を土台に、中心まわりを
+                         1周（累積角度360°）したあとは、そこから先の周回で
+                         目標半径を下限（約18%）まで smoothstep で滑らかに
+                         縮める。縮み切るまでの周回数はタイプ別で、
+                         アタック／スタミナ／バランスは約14周、防御は
+                         約40周（防御はリングに踏ん張る個性として遅くする。
+                         速くすると中心で粘る持久タイプが防御の接近戦に
+                         削り切られ、相性が大きく崩れるため。シミュレーション
+                         検証済み）。回転が落ちて周回が遅くなるほど縮小も
+                         ゆっくり進むので、持久（decayが遅い）が中心付近で
+                         長く粘る個性とは喧嘩しない。序盤〜中盤はタイプ別の
+                         半径の差が残り、終盤は全ベイが中心付近へ寄って
+                         ぶつかり合う */
   function orbitRadius(p, maxD){
+    var base;
     if (p.b.tip === "flat"){
-      if (p.shrinkStart === null || p.shrinkStart === undefined) return maxD * 0.85;
-      var s = Math.min(1, (battleT - p.shrinkStart) / 5);
-      return maxD * (0.85 - 0.62 * s);
-    }
-    if (p.b.tip === "round") return maxD * 0.25;
-    if (p.b.tip === "balance"){
+      if (p.shrinkStart === null || p.shrinkStart === undefined) base = maxD * 0.85;
+      else {
+        var s = Math.min(1, (battleT - p.shrinkStart) / 5);
+        base = maxD * (0.85 - 0.62 * s);
+      }
+    } else if (p.b.tip === "round"){
+      base = maxD * 0.25;
+    } else if (p.b.tip === "balance"){
       var bs = Math.min(1, Math.max(0, (battleT - 12) / 12));
       var bsm = bs * bs * (3 - 2 * bs); /* smoothstepでゆるやかに */
-      return maxD * (0.55 - 0.20 * bsm);
+      base = maxD * (0.55 - 0.20 * bsm);
+    } else {
+      base = maxD * 0.45;
     }
-    return maxD * 0.45;
+    /* 全タイプ共通の漸進縮小：1周を超えた分だけ、下限へ寄せる。
+       base が下限以下のタイプ（実質スタミナの終盤など）はそのまま。
+       縮み切るまでの周回数（span）はタイプ別：防御（sharp）だけ
+       約40周と遅い。それ以外は約14周。防御を他と同じ速さで中心へ
+       寄せると、ゆきペンギン対いわゴーレムの相性が大きく崩れる
+       （ねばる無しの勝率が約4割→約1割まで落ちる）ことを
+       シミュレーションで確認したための調整で、防御がリングに
+       踏ん張る個性としても自然 */
+    var floor = maxD * 0.18;
+    if (base <= floor) return base;
+    var span = (p.b.tip === "sharp") ? 40 : 14;
+    var laps = (p.orbitCum || 0) / (Math.PI * 2);
+    var cp = Math.min(1, Math.max(0, (laps - 1) / span));
+    var csm = cp * cp * (3 - 2 * cp); /* smoothstepで滑らかに */
+    return floor + (base - floor) * (1 - csm);
   }
   /* 周回スピード（接線方向、px/秒）。アタックは速く、防御は穏やか、
-     バランスはその中間。全タイプとも従来比で約1.45倍→さらに約1.3倍の速さ */
+     バランスはその中間。平常時の巡航速度は約1.1倍に底上げして
+     もっさり感を消す。速度天井（speedCap）は orbitSpeed 比例で決まる
+     ため、天井・付け替えクランプ・逓減係数のラチェット防止の仕組みは
+     形を変えずにそのまま追随する（衝突の kick 名目値は据え置き）。
+     底上げ幅は約1.1倍に抑えた：速くすると衝突頻度と強ヒット率が
+     上がって毎秒ダメージが増え、持久タイプの相性（ゆきペンギン対
+     いわゴーレム）が大きく崩れるため（約1.25倍では同対戦の勝率が
+     2割以下まで落ちることをシミュレーションで確認）。併せて衝突の
+     クールダウンを 0.18→0.21 秒に少しだけ延ばし、速くなったぶんの
+     衝突頻度の増加を均している */
   function orbitSpeed(p, r, speedRatio){
     var base = p.b.tip === "flat" ? 1.79 : (p.b.tip === "round" ? 0.85 : (p.b.tip === "balance" ? 1.32 : 1.13));
-    return r * base * (p.b.speedMul || 1) * (0.35 + 0.65 * speedRatio);
+    return r * base * 1.1 * (p.b.speedMul || 1) * (0.35 + 0.65 * speedRatio);
   }
   /* ===== 速度の天井（ラチェット防止） =====
      速度の大きさの上限は、その時点の目標軌道速度（orbitSpeed）と
@@ -1004,22 +1064,22 @@
         p.baseUx = ux; p.baseUy = uy; p.baseTx = tx; p.baseTy = ty;
       }
 
-      /* アタックの半径縮小の開始判定：中心まわりの累積角度を数える。
-         位置の角度の差分（−π〜πに正規化）の絶対値を積み上げ、2周分
-         （720°＝4π rad）を超えた瞬間の時刻を shrinkStart に記録する。
+      /* 周回カウント（全タイプ共通）：中心まわりの累積角度を数える。
+         位置の角度の差分（−π〜πに正規化）の絶対値を積み上げる。
          弾かれている間も位置ベースで数えるので、外へ飛ばされても
-         周回として正しく進む */
-      if (p.b.tip === "flat"){
-        var angNow = Math.atan2(dy, dx);
-        if (p.orbitAng !== null && p.orbitAng !== undefined){
-          var da = angNow - p.orbitAng;
-          while (da > Math.PI) da -= Math.PI*2;
-          while (da < -Math.PI) da += Math.PI*2;
-          p.orbitCum += Math.abs(da);
-          if (p.shrinkStart === null && p.orbitCum >= Math.PI*4) p.shrinkStart = battleT;
-        }
-        p.orbitAng = angNow;
+         周回として正しく進む。アタックは従来通り、2周分（720°＝4π rad）
+         を超えた瞬間の時刻を自分の縮小開始（shrinkStart）として記録
+         する。全タイプ共通の「1周後から徐々に縮む」漸進縮小は、
+         orbitRadius 側がこの累積角度（orbitCum）から直接計算する */
+      var angNow = Math.atan2(dy, dx);
+      if (p.orbitAng !== null && p.orbitAng !== undefined){
+        var da = angNow - p.orbitAng;
+        while (da > Math.PI) da -= Math.PI*2;
+        while (da < -Math.PI) da += Math.PI*2;
+        p.orbitCum += Math.abs(da);
+        if (p.b.tip === "flat" && p.shrinkStart === null && p.orbitCum >= Math.PI*4) p.shrinkStart = battleT;
       }
+      p.orbitAng = angNow;
 
       if (p.kickT > 0){
         /* 弾かれた直後は勢いのまま飛ぶ：操舵せず軽い減衰だけ。
@@ -1218,7 +1278,9 @@
           clampToBudget(a, preSpeedA, kickNomA, capA);
           clampToBudget(b, preSpeedB, kickNomB, capB);
           /* 弾かれた直後は二人とも一瞬ゆっくりに見せてから勢いよく離れる */
-          a.clashCd = 0.18; b.clashCd = 0.18;
+          /* クールダウンは 0.21 秒：巡航速度の底上げ（約1.1倍）で
+             衝突頻度が増えたぶんを均し、毎秒ダメージを従来並みに保つ */
+          a.clashCd = 0.21; b.clashCd = 0.21;
           a.kickT = 0.25; b.kickT = 0.25;
           /* ヒットストップはダメージ確定後に下で設定する（受けた側の判定に使うため） */
           /* ダメージ：与える側の atk × 受ける側の guard で決まる（両者共通の式）。
@@ -1260,7 +1322,13 @@
             if (a.me) dmgB *= atkMulNow;
             if (b.me) dmgA *= atkMulNow;
           }
+          var preSpinA = a.spin, preSpinB = b.spin;
           a.spin -= dmgA; b.spin -= dmgB;
+          /* 場外決着の印：この一撃でゲージが尽きた側は、決着時に
+             スタジアムの外へ吹っ飛ぶ。自然減衰で尽きた場合には
+             付けない（従来通りその場で止まる） */
+          if (preSpinA > 0.5 && a.spin <= 0.5) a.ringOut = true;
+          if (preSpinB > 0.5 && b.spin <= 0.5) b.ringOut = true;
           /* ===== 手応え：ヒットストップ＋震え＋ヒットマーク＋画面振動 =====
              止まる長さは衝撃の強さで変える（通常 約50ms／強い一撃 約110ms）。
              受けた側（受けたダメージが大きい側）を大きく震わせる */
@@ -1413,6 +1481,34 @@
         });
         sparks(loser.x, loser.y, 22, true);
       }, 200);
+    } else if (loser.ringOut){
+      /* 場外決着：衝突ダメージでゲージが尽きたベイは、中心から外向きへ
+         大きく吹っ飛んでスタジアムの外へ消える。結果ポップアップ
+         （約1.1秒後）より前に飛び切るよう、飛行は約0.85秒で完了させる。
+         スタジアムは overflow:hidden で外側が切り取られるので、
+         決着中だけ visible に切り替える（リセットで戻す） */
+      SFX.shoot(); SFX.spinout();
+      if (navigator.vibrate) navigator.vibrate(60);
+      stadium.style.overflow = "visible";
+      var fr = stadium.clientWidth, frad = fr*0.162/2;
+      var fdx = loser.x - fr/2, fdy = loser.y - fr/2;
+      var fdl = Math.hypot(fdx, fdy);
+      var fux, fuy;
+      if (fdl > 1){ fux = fdx/fdl; fuy = fdy/fdl; }
+      else { fux = (loser.x <= fr/2) ? 1 : -1; fuy = -0.35; }
+      var flyD = fr * 0.95;
+      var fStart = "translate("+(loser.x-frad)+"px,"+(loser.y-frad)+"px) rotate("+loser.ang+"deg)";
+      var fEnd = "translate("+(loser.x-frad+fux*flyD)+"px,"+(loser.y-frad+fuy*flyD)+"px) rotate("+(loser.ang+540)+"deg)";
+      if (loser.el.animate){
+        loser.el.animate([
+          { transform:fStart, opacity:1 },
+          { transform:fEnd, opacity:1, offset:.78 },
+          { transform:fEnd, opacity:0 }
+        ], { duration:850, easing:"cubic-bezier(.55,.06,.85,.4)", fill:"forwards" });
+      } else {
+        loser.el.style.transform = fEnd;
+        loser.el.style.opacity = "0";
+      }
     } else {
       SFX.spinout();
       loser.el.classList.add("wobble");
@@ -1463,6 +1559,7 @@
     state = "pick";
     hitstopT = 0; shakeT = 0; hitShakeA = 0; hitShakeB = 0;
     stadium.style.transform = "";
+    stadium.style.overflow = ""; /* 場外決着で visible にしたのを戻す */
     gutsLevel = 0; gutsT = 0;
     gutsBtn.style.display = "none";
     gutsOff();
