@@ -920,7 +920,7 @@
       var R = orbitRadius(p, maxD);
       var a = p.me ? Math.PI*0.75 : Math.PI*1.75;
       p.x = cx + Math.cos(a)*R; p.y = cy + Math.sin(a)*R;
-      var sp = r * 1.14; /* 初速も巡航速度の底上げ（約1.1倍）に合わせる */
+      var sp = r * 1.28; /* 初速も巡航速度の底上げに合わせる */
       p.vx = -Math.sin(a)*sp*p.dir; p.vy = Math.cos(a)*sp*p.dir;
       /* 周回カウントをリセット：中心まわりの累積角度と縮小開始時刻 */
       p.orbitCum = 0;
@@ -1016,7 +1016,7 @@
      衝突頻度の増加を均している */
   function orbitSpeed(p, r, speedRatio){
     var base = p.b.tip === "flat" ? 1.79 : (p.b.tip === "round" ? 0.85 : (p.b.tip === "balance" ? 1.32 : 1.13));
-    return r * base * 1.1 * (p.b.speedMul || 1) * (0.35 + 0.65 * speedRatio);
+    return r * base * 1.24 * (p.b.speedMul || 1) * (0.35 + 0.65 * speedRatio);
   }
   /* ===== 速度の天井（ラチェット防止） =====
      速度の大きさの上限は、その時点の目標軌道速度（orbitSpeed）と
