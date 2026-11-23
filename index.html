@@ -299,26 +299,35 @@
     #shootBtn{min-height:78px; font-size:30px;}
   }
   /* ---------- 横向き（ランドスケープ）のバトル画面 ----------
-     縦積みレイアウトのままだと、横向きではスタジアムがゲージや
-     ボタンを押し潰し、ゲージがスタジアムに隠れ、ねばるボタンが
-     画面右端からはみ出して切れてしまう（iPad実機で確認）。
-     バトル中（body.battling）だけ2カラムのグリッドにする：
-     左にスタジアム（セル内で高さ・幅の小さい方に合わせて径を決める
-     ので、はみ出しようがない）、右に幅320pxの列を取り、
-     ゲージは縦積み、ヒントとねばるボタンもその列に収める。
-     グリッドのセル同士は重ならないため、スタジアムがゲージに
-     かぶることは構造的に起きない */
+     以前は「左にスタジアム／右の列にゲージとボタン」の2カラムだったが、
+     子供が両手で iPad を持ちながら右端のボタンまで手を伸ばすのを
+     嫌がったため廃止。横向きでも縦向きと同じ縦積みに統一する：
+     上にスタジアム、下にゲージ2本＋説明文＋ねばるボタン。
+     横向きは高さが限られるので、下段は全体をコンパクトに詰め、
+     スタジアムの径は fitStadium が「画面の高さ − 下段の高さ」に
+     収まるよう決める（stageWrap が flex:1 で残り高さを受け取る
+     構造なので、ゲージが隠れたりはみ出したりしない）。
+     ねばるボタンは下段の中央に大きく置き、両手持ちのまま
+     左右どちらの親指でも届く位置にする */
   @media (orientation: landscape){
-    body.battling #app{
-      display:grid;
-      grid-template-columns:minmax(0,1fr) 320px;
-      grid-template-rows:auto minmax(0,1fr);
-      align-items:stretch;
-    }
-    body.battling #stageWrap{grid-column:1; grid-row:1 / span 2; width:100%; height:100%;}
-    body.battling #gauges{grid-column:2; grid-row:1; width:100%; flex-direction:column; gap:8px;}
-    body.battling #gauges .gauge{flex:none; width:100%;}
-    body.battling #controls{grid-column:2; grid-row:2; width:100%; justify-content:flex-start;}
+    body.battling #app{gap:6px; padding-top:calc(6px + env(safe-area-inset-top)); padding-bottom:calc(6px + env(safe-area-inset-bottom));}
+    body.battling #stageWrap{width:100%;}
+    body.battling #gauges{width:min(94vw,760px); flex-direction:row; gap:12px;}
+    body.battling #gauges .gauge{flex:1; width:auto;}
+    body.battling #gauges .bar{height:20px;}
+    body.battling #gauges .who{font-size:15px; margin-top:2px;}
+    body.battling #controls{width:min(94vw,760px); align-items:center; gap:6px;}
+    body.battling #controls .hintline{font-size:14px; min-height:1.25em;}
+    body.battling #gutsBtn{align-self:center; width:min(560px,92vw); min-height:72px; font-size:clamp(26px,4.5vw,34px);}
+    body.battling #shootBtn{align-self:center; width:min(560px,92vw);}
+  }
+  /* 背の低い横向き（スマホ横持ちなど）ではバトル下段をさらに詰めて、
+     スタジアムの居場所を確保する */
+  @media (orientation: landscape) and (max-height:560px){
+    body.battling #gauges .bar{height:16px;}
+    body.battling #gauges .who{font-size:13px;}
+    body.battling #controls .hintline{font-size:12px; min-height:1.1em;}
+    body.battling #gutsBtn{min-height:56px; font-size:24px;}
   }
   /* 背の低い横向き（スマホ横持ちなど）では選択画面も詰めて、
      スクロールなしで全部が画面内に収まるようにする */
@@ -677,14 +686,34 @@
   }
 
   /* スタジアムを空きスペースにぴったり合わせる。
+     レイアウトは縦積み（上：スタジアム、下：ゲージ＋操作系）で
+     縦向き・横向き共通。stageWrap が flex:1 で「画面の高さ −
+     下段の高さ」の残りを受け取るので、その幅・高さに合わせる。
+     バトル中は念のため、ゲージと操作系の実高さから逆算した
+     上限でも絞る（二重の安全弁：計測タイミングのズレで下段に
+     かぶるのを防ぐ）。
      径にはリム（box-shadowの段重ね最大14px）と落影ぶんの余白として
      上下左右合計40pxを差し引く：本体の箱だけ合わせると、見た目の
-     縁が下のゲージにかぶって隠してしまうため */
+     縁が下のゲージにかぶって隠してしまうため。
+     下限180pxの固定は、背の低い横向きで下段を押し潰す原因になる
+     ため、空きが小さいときは下限自体を空きに合わせて下げる */
   var stageWrap = document.getElementById("stageWrap");
   function fitStadium(){
     var w = stageWrap.clientWidth, h = stageWrap.clientHeight;
     if (!w || !h) return;
-    var d = Math.max(180, Math.min(w, h, 780) - 40);
+    if (document.body.classList.contains("battling")){
+      var controlsEl = document.getElementById("controls");
+      var gh = gauges.offsetHeight || 0;
+      var ch = controlsEl ? (controlsEl.offsetHeight || 0) : 0;
+      /* #app の上下パディング＋要素間の gap ぶんを多めに見積もる */
+      var byViewport = window.innerHeight - (gh + ch + 52);
+      if (byViewport > 0 && byViewport < h) h = byViewport;
+    }
+    var limit = Math.min(w, h, 780);
+    var d = limit - 40;
+    var floorD = limit >= 240 ? 180 : Math.max(96, limit - 16);
+    if (d < floorD) d = floorD;
+    if (d > limit - 16) d = Math.max(80, limit - 16);
     stadium.style.width = d + "px";
     stadium.style.height = d + "px";
   }
@@ -857,7 +886,7 @@
 
   function startCountdown(){
     state = "count";
-    /* 横向きレイアウト（2カラムグリッド）はバトル中だけ有効にする */
+    /* バトル中のコンパクト表示（横向きの下段詰めなど）はこのクラスで切り替える */
     document.body.classList.add("battling");
     hitstopT = 0; shakeT = 0; hitShakeA = 0; hitShakeB = 0;
     stadium.style.transform = "";
@@ -1800,8 +1829,7 @@
     if (state==="pick" && myBey) preview();
   });
   window.addEventListener("orientationchange", function(){
-    /* 回転でレイアウト（縦積み⇔横向き2カラム）が切り替わるので、
-       スタジアムの径も測り直す */
+    /* 回転で画面の高さが変わり、スタジアムの径の上限も変わるので測り直す */
     setTimeout(function(){ fitStadium(); fitCardTexts(); }, 60);
   });
   fitStadium();
