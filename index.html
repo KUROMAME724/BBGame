@@ -308,6 +308,13 @@
     padding:4px 10px; border-radius:6px; transform:rotate(-2deg);
     box-shadow:0 3px 0 rgba(8,12,22,.3); text-shadow:0 1px 0 rgba(120,15,0,.4);
   }
+  /* 特性の一言チップ：バーストしないことを子供向けに伝える */
+  .rainbowChoice .traitTag{
+    font-size:clamp(12px,3.2vw,15px); font-weight:900; color:#fff; white-space:nowrap;
+    background:linear-gradient(180deg,#38bdf8,#2563eb 60%,#1e40af);
+    padding:4px 10px; border-radius:6px; transform:rotate(1.5deg);
+    box-shadow:0 3px 0 rgba(8,12,22,.3); text-shadow:0 1px 0 rgba(10,40,120,.4);
+  }
   /* 虹色：色相がぐるぐる回って虹色に変わり続ける */
   .rainbowFx svg{animation:hueSpin 2.8s linear infinite;}
   @keyframes hueSpin{from{filter:hue-rotate(0deg);}to{filter:hue-rotate(360deg);}}
@@ -335,6 +342,12 @@
     text-shadow:0 4px 0 rgba(120,60,0,.45), 0 0 34px rgba(255,190,40,.65);
   }
   #unlockFx .unlockName{font-size:clamp(18px,5vw,24px); font-weight:900; color:#fff; margin-top:8px; letter-spacing:.06em;}
+  #unlockFx .unlockTrait{
+    display:inline-block; margin-top:10px; font-size:clamp(15px,4.4vw,19px); font-weight:900; color:#fff;
+    background:linear-gradient(180deg,#38bdf8,#2563eb 60%,#1e40af);
+    padding:6px 14px; border-radius:8px; transform:rotate(-1.5deg);
+    box-shadow:0 4px 0 rgba(8,12,22,.35); text-shadow:0 1px 0 rgba(10,40,120,.4);
+  }
   #unlockFx .unlockTap{font-size:14px; font-weight:700; color:rgba(255,255,255,.75); margin-top:14px;}
   .starFx{
     position:absolute; pointer-events:none; line-height:1;
@@ -447,6 +460,7 @@
     <div class="unlockBey rainbowFx" id="unlockBey"></div>
     <div class="unlockBig">かくしベイが<br>あらわれた！</div>
     <div class="unlockName">にじいろドラゴン</div>
+    <div class="unlockTrait">バラバラに ならない！</div>
     <div class="unlockTap">タップで とじる</div>
   </div>
 </div>
@@ -553,8 +567,12 @@
      decay 1.2（持久クラス）、guard 0.55（タートル超え・ゴーレム未満）、
      周回も速め。どの1項目も既存の最高値は超えず、総合力で最強クラスに
      収める（壊れ性能にはしない）。見た目は虹色（色相回転）で、
-     大きさは他のベイの約1.1倍（sizeMul） */
-  var RAINBOW_BEY = { id:"rainbow", name:"にじいろドラゴン", type:"バランス", tip:"balance", main:"#f43f5e", dark:"#881337", light:"#ffe4e6", blades:6, atk:1.35, decay:1.2, guard:0.55, speedMul:1.1, sizeMul:1.1, rainbow:true };
+     大きさは他のベイの約1.1倍（sizeMul）。
+     特性：バーストしない（noBurst）。相手の攻撃でバラバラになる
+     決着はこのベイには発生せず、負け方は回転が止まる（スピン）や
+     場外のみ。特性はベイ自体に紐づくので、将来 CPU が使う場合でも
+     同じくバーストしない */
+  var RAINBOW_BEY = { id:"rainbow", name:"にじいろドラゴン", type:"バランス", tip:"balance", main:"#f43f5e", dark:"#881337", light:"#ffe4e6", blades:6, atk:1.35, decay:1.2, guard:0.55, speedMul:1.1, sizeMul:1.1, rainbow:true, noBurst:true };
   /* ゲージ満タン量（プレイヤー側）。CPU側は基礎倍率ぶんだけ変わる（通常戦は1.15倍、ボス戦は合計で約1.36倍） */
 
   function beySVG(b){
@@ -852,7 +870,8 @@
   rainbowBtn.innerHTML = beySVG(RAINBOW_BEY) +
     '<span class="cname">'+RAINBOW_BEY.name+'</span>' +
     '<span class="ctype t-bal">'+RAINBOW_BEY.type+'</span>' +
-    '<span class="secretTag">かくしベイ！</span>';
+    '<span class="secretTag">かくしベイ！</span>' +
+    '<span class="traitTag">バラバラに ならない！</span>';
   rainbowBtn.addEventListener("click", function(){
     if (!rainbowUnlocked) return;
     audio(); SFX.pick();
@@ -879,7 +898,7 @@
     } else if (winStreak >= 2){
       var stars = "";
       for (var i=0;i<winStreak && i<5;i++) stars += "★";
-      sl.textContent = stars + " " + winStreak + "れんしょうちゅう！" + (winStreak >= 3 ? " あと" + (5 - winStreak) + "かちで なにか おきるかも…？" : "");
+      sl.textContent = stars + " " + winStreak + "れんしょうちゅう！";
       sl.style.visibility = "visible";
     } else if (winStreak === 1){
       sl.textContent = "★ 1れんしょう！";
@@ -1736,14 +1755,16 @@
           /* バースト：強い一撃のときだけ、残りゲージが少ない相手が
              ごくまれに弾け飛ぶ（目安は3試合に1回起きるかどうか）。
              攻撃タイプの強い一撃を受けたときは少しだけ起きやすい
-             （両者同じルール）。通常ヒットではバーストしない */
+             （両者同じルール）。通常ヒットではバーストしない。
+             例外：noBurst のベイ（にじいろドラゴン）はバーストしない。
+             特性はベイ自体に紐づくので、どちらの側が使っても効く */
           if (hard){
             var burstThreshA = (b.b.tip === "flat") ? 0.30 : 0.22;
             var burstProbA   = (b.b.tip === "flat") ? 0.04 : 0.03;
             var burstThreshB = (a.b.tip === "flat") ? 0.30 : 0.22;
             var burstProbB   = (a.b.tip === "flat") ? 0.04 : 0.03;
-            if (a.spin < a.max*burstThreshA && Math.random()<burstProbA) return finish(a, true);
-            if (b.spin < b.max*burstThreshB && Math.random()<burstProbB) return finish(b, true);
+            if (!a.b.noBurst && a.spin < a.max*burstThreshA && Math.random()<burstProbA) return finish(a, true);
+            if (!b.b.noBurst && b.spin < b.max*burstThreshB && Math.random()<burstProbB) return finish(b, true);
           }
         } else if (approach > 0){
           /* クールダウン中はすり抜けず、軽く押し合いだけ続ける。
