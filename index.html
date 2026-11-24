@@ -1753,16 +1753,18 @@
           SFX.clash(hard);
           if (navigator.vibrate) navigator.vibrate(hard?60:25);
           /* バースト：強い一撃のときだけ、残りゲージが少ない相手が
-             ごくまれに弾け飛ぶ（目安は3試合に1回起きるかどうか）。
+             ごくまれに弾け飛ぶ（目安は12試合に1回起きるかどうか）。
+             5連勝の途中で理不尽に途切れないよう、確率は以前の約1/4に
+             下げた（攻撃タイプ 1%／その他 0.75%）。
              攻撃タイプの強い一撃を受けたときは少しだけ起きやすい
              （両者同じルール）。通常ヒットではバーストしない。
              例外：noBurst のベイ（にじいろドラゴン）はバーストしない。
              特性はベイ自体に紐づくので、どちらの側が使っても効く */
           if (hard){
             var burstThreshA = (b.b.tip === "flat") ? 0.30 : 0.22;
-            var burstProbA   = (b.b.tip === "flat") ? 0.04 : 0.03;
+            var burstProbA   = (b.b.tip === "flat") ? 0.01 : 0.0075;
             var burstThreshB = (a.b.tip === "flat") ? 0.30 : 0.22;
-            var burstProbB   = (a.b.tip === "flat") ? 0.04 : 0.03;
+            var burstProbB   = (a.b.tip === "flat") ? 0.01 : 0.0075;
             if (!a.b.noBurst && a.spin < a.max*burstThreshA && Math.random()<burstProbA) return finish(a, true);
             if (!b.b.noBurst && b.spin < b.max*burstThreshB && Math.random()<burstProbB) return finish(b, true);
           }
