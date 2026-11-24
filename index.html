@@ -273,6 +273,76 @@
   @media (prefers-reduced-motion: reduce){
     .confetti{display:none;}
   }
+  /* ---------- かくしベイ（にじいろドラゴン） ---------- */
+  /* 連勝表示：min-height で場所だけ確保し、出入りでレイアウトが揺れないようにする */
+  #streakLine{
+    min-height:1.5em; margin-top:2px;
+    font-size:clamp(15px,4vw,21px); font-weight:900; letter-spacing:.05em;
+    color:var(--gold); text-shadow:0 2px 0 rgba(10,18,34,.18);
+    visibility:hidden;
+  }
+  /* かくしベイのカード置き場：出現したときだけJSで表示する。
+     3×3グリッドの上に、横長の特別カードとして出す */
+  #rainbowSlot{display:none; width:100%; max-width:880px; margin:8px auto 0;}
+  .rainbowChoice{
+    position:relative; width:100%; cursor:pointer; font-family:inherit; color:var(--ink);
+    display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap;
+    padding:10px 16px; border-radius:14px; min-height:84px;
+    border:3px solid transparent;
+    background:linear-gradient(165deg, var(--panel), var(--panel2)) padding-box,
+               conic-gradient(from 20deg, #ef4444, #f59e0b, #eab308, #22c55e, #38bdf8, #a855f7, #ef4444) border-box;
+    box-shadow:0 4px 0 rgba(10,18,34,.28), 0 0 22px rgba(245,185,66,.45), 0 10px 20px rgba(10,18,34,.14);
+    transition:transform .12s ease, box-shadow .12s ease;
+  }
+  .rainbowChoice:active{transform:scale(.97);}
+  .rainbowChoice.sel{box-shadow:0 0 0 3px var(--accent), 0 0 30px rgba(245,185,66,.8), 0 12px 26px rgba(10,18,34,.25); transform:scale(1.02);}
+  .rainbowChoice svg{width:64px; height:64px; flex:none; transform:scale(1.1);}
+  .rainbowChoice .cname{font-family:var(--disp); font-size:clamp(20px,5.5vw,30px); font-weight:900; white-space:nowrap;}
+  .rainbowChoice .ctype{font-size:clamp(12px,3.4vw,16px); font-weight:900; padding:3px 8px; border-radius:6px; background:rgba(168,85,247,.16); color:#7e22ce; white-space:nowrap;}
+  @media (prefers-color-scheme: dark){
+    .rainbowChoice .ctype{color:#d8b4fe;}
+  }
+  .rainbowChoice .secretTag{
+    font-size:clamp(12px,3.2vw,15px); font-weight:900; color:#fff; white-space:nowrap;
+    background:linear-gradient(180deg,var(--accent-hi),var(--accent) 60%,var(--accent-dk));
+    padding:4px 10px; border-radius:6px; transform:rotate(-2deg);
+    box-shadow:0 3px 0 rgba(8,12,22,.3); text-shadow:0 1px 0 rgba(120,15,0,.4);
+  }
+  /* 虹色：色相がぐるぐる回って虹色に変わり続ける */
+  .rainbowFx svg{animation:hueSpin 2.8s linear infinite;}
+  @keyframes hueSpin{from{filter:hue-rotate(0deg);}to{filter:hue-rotate(360deg);}}
+  .bey.wobble.rainbowFx svg{animation:wob .28s ease-in-out infinite alternate, hueSpin 2.8s linear infinite;}
+  /* 他のベイより約1.1倍大きい（見た目だけ。中心位置はそのまま） */
+  .bey.big svg{transform:scale(1.1);}
+  @media (prefers-reduced-motion: reduce){
+    .rainbowFx svg, .bey.wobble.rainbowFx svg{animation:none;}
+    .starFx{display:none;}
+  }
+
+  /* ---------- かくしベイ出現演出 ---------- */
+  #unlockFx{
+    position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+    background:rgba(5,9,18,.78); z-index:30; padding:20px; overflow:hidden;
+  }
+  #unlockFx .unlockCard{
+    position:relative; text-align:center; max-width:440px; width:100%;
+    animation:rin .4s cubic-bezier(.2,1.4,.4,1);
+  }
+  #unlockFx .unlockBey svg{width:clamp(110px,32vw,160px); height:clamp(110px,32vw,160px);}
+  #unlockFx .unlockBig{
+    font-family:var(--disp); font-weight:900; line-height:1.25; margin-top:10px;
+    font-size:clamp(34px,9.5vw,54px); color:#ffd23f;
+    text-shadow:0 4px 0 rgba(120,60,0,.45), 0 0 34px rgba(255,190,40,.65);
+  }
+  #unlockFx .unlockName{font-size:clamp(18px,5vw,24px); font-weight:900; color:#fff; margin-top:8px; letter-spacing:.06em;}
+  #unlockFx .unlockTap{font-size:14px; font-weight:700; color:rgba(255,255,255,.75); margin-top:14px;}
+  .starFx{
+    position:absolute; pointer-events:none; line-height:1;
+    animation:starTw 1s ease-in-out infinite alternate;
+    text-shadow:0 0 12px rgba(255,220,90,.9);
+  }
+  @keyframes starTw{from{transform:scale(.55) rotate(-14deg); opacity:.35;}to{transform:scale(1.25) rotate(16deg); opacity:1;}}
+
   /* 狭い画面ではカードの余白と枠を詰めて、文字がはみ出さないようにする */
   @media (max-width:480px){
     #beyChoices{gap:8px;}
@@ -348,6 +418,8 @@
 
   <div id="pick">
     <p class="lead">ベイを <em>えらべ！</em><small>すきなベイを タップ</small></p>
+    <div id="streakLine" aria-live="polite"></div>
+    <div id="rainbowSlot"></div>
     <div id="beyChoices"></div>
   </div>
 
@@ -367,6 +439,15 @@
     <div class="hintline" id="hint">ベイを えらぶと シュートできるよ</div>
     <button class="bigbtn" id="shootBtn" disabled><span class="btnIn">シュート！</span></button>
     <button class="bigbtn" id="gutsBtn" type="button">ねばる！</button>
+  </div>
+</div>
+
+<div id="unlockFx">
+  <div class="unlockCard">
+    <div class="unlockBey rainbowFx" id="unlockBey"></div>
+    <div class="unlockBig">かくしベイが<br>あらわれた！</div>
+    <div class="unlockName">にじいろドラゴン</div>
+    <div class="unlockTap">タップで とじる</div>
   </div>
 </div>
 
@@ -463,6 +544,17 @@
        guardは標準よりほんの少しだけ良く、decayは普通 */
     { id:"kabuto", name:"はがねカブト",   type:"バランス",     tip:"balance",main:"#2b2b2b", dark:"#92600a", light:"#facc15", blades:6, atk:1.1,  decay:5.0, guard:0.9,  speedMul:1.05 }
   ];
+  /* ===== かくしベイ：にじいろドラゴン（プレイヤー専用） =====
+     BEYS には入れない：選択グリッドにも、CPU の抽選プールにも混ざらない。
+     出現条件は「5連勝」。出現後は負けるまで選択画面に出続け、
+     連勝カウントも出現状態もメモリ上のみ（保存しない）なので、
+     ページを閉じれば当然消える。
+     性能は強めの万能型（バランス）：atk 1.35（ドラゴン超え・ライノ未満）、
+     decay 1.2（持久クラス）、guard 0.55（タートル超え・ゴーレム未満）、
+     周回も速め。どの1項目も既存の最高値は超えず、総合力で最強クラスに
+     収める（壊れ性能にはしない）。見た目は虹色（色相回転）で、
+     大きさは他のベイの約1.1倍（sizeMul） */
+  var RAINBOW_BEY = { id:"rainbow", name:"にじいろドラゴン", type:"バランス", tip:"balance", main:"#f43f5e", dark:"#881337", light:"#ffe4e6", blades:6, atk:1.35, decay:1.2, guard:0.55, speedMul:1.1, sizeMul:1.1, rainbow:true };
   /* ゲージ満タン量（プレイヤー側）。CPU側は基礎倍率ぶんだけ変わる（通常戦は1.15倍、ボス戦は合計で約1.36倍） */
 
   function beySVG(b){
@@ -592,7 +684,14 @@
     spinout:function(){ tone(700,.7,"sine",.18,90); },
     dud:    function(){ tone(196,.15,"square",.12,150); },
     win:    function(){ [523,659,784,1046].forEach(function(f,i){ tone(f,.28,"triangle",.24,null,i*.13); }); noise(.4,.08,4000,.5); },
-    lose:   function(){ [392,330,262].forEach(function(f,i){ tone(f,.3,"triangle",.2,null,i*.16); }); }
+    lose:   function(){ [392,330,262].forEach(function(f,i){ tone(f,.3,"triangle",.2,null,i*.16); }); },
+    /* かくしベイ出現のファンファーレ：明るい上昇アルペジオ＋締めの和音＋キラキラノイズ */
+    fanfare:function(){
+      [523,659,784,1046].forEach(function(f,i){ tone(f,.22,"triangle",.24,null,i*.11); });
+      tone(1318,.55,"triangle",.24,null,.46);
+      tone(659,.55,"sine",.12,null,.46); tone(784,.55,"sine",.12,null,.46);
+      noise(.5,.07,5200,.4); noise(.35,.05,6800,.62);
+    }
   };
 
   /* ===== 状態 ===== */
@@ -604,6 +703,10 @@
   var resultEl= document.getElementById("result");
   var myBey = null, cpuBey = null;
   var battleCount = 0, cpuStrong = false; // 3回に1回、相手がボスとしてさらに強くなる
+  /* 連勝＆かくしベイの状態（メモリ上のみ。保存はしない）：
+     winStreak が 5 に届いたら rainbowUnlocked が立ち、負けた時点で
+     両方とも消える。rainbowJustAppeared は出現演出を1回だけ出すための印 */
+  var winStreak = 0, rainbowUnlocked = false, rainbowJustAppeared = false;
   var state = "pick"; // pick | count | battle | end
   var P = []; // 物理オブジェクト
   var raf = null, lastT = 0;
@@ -720,6 +823,7 @@
 
   /* ===== ベイ選択 ===== */
   var choicesEl = document.getElementById("beyChoices");
+  var rainbowBtn = null; /* かくしベイのカード（下で生成）。グリッド側の選択解除で参照する */
   BEYS.forEach(function(b){
     var btn = document.createElement("button");
     btn.className = "choice"; btn.type = "button";
@@ -731,6 +835,7 @@
       myBey = b;
       var all = choicesEl.querySelectorAll(".choice");
       for (var i=0;i<all.length;i++) all[i].classList.remove("sel");
+      if (rainbowBtn) rainbowBtn.classList.remove("sel");
       btn.classList.add("sel");
       shootBtn.disabled = false;
       hintEl.textContent = "したの ボタンを おしてね！";
@@ -738,6 +843,81 @@
     });
     choicesEl.appendChild(btn);
   });
+
+  /* ===== かくしベイのカード（グリッドの上の特別枠） ===== */
+  var rainbowSlot = document.getElementById("rainbowSlot");
+  rainbowBtn = document.createElement("button");
+  rainbowBtn.className = "rainbowChoice rainbowFx"; rainbowBtn.type = "button";
+  rainbowBtn.setAttribute("aria-label", RAINBOW_BEY.name);
+  rainbowBtn.innerHTML = beySVG(RAINBOW_BEY) +
+    '<span class="cname">'+RAINBOW_BEY.name+'</span>' +
+    '<span class="ctype t-bal">'+RAINBOW_BEY.type+'</span>' +
+    '<span class="secretTag">かくしベイ！</span>';
+  rainbowBtn.addEventListener("click", function(){
+    if (!rainbowUnlocked) return;
+    audio(); SFX.pick();
+    myBey = RAINBOW_BEY;
+    var all = choicesEl.querySelectorAll(".choice");
+    for (var i=0;i<all.length;i++) all[i].classList.remove("sel");
+    rainbowBtn.classList.add("sel");
+    shootBtn.disabled = false;
+    hintEl.textContent = "したの ボタンを おしてね！";
+    preview();
+  });
+  rainbowSlot.appendChild(rainbowBtn);
+  document.getElementById("unlockBey").innerHTML = beySVG(RAINBOW_BEY);
+
+  /* 選択画面の「連勝表示」と「かくしベイ表示」を現在の状態に合わせる。
+     reset（結果画面→選択画面）のたびに呼ばれる */
+  function updatePickExtras(){
+    rainbowSlot.style.display = rainbowUnlocked ? "block" : "none";
+    if (rainbowBtn) rainbowBtn.classList.toggle("sel", !!(myBey && myBey.rainbow));
+    var sl = document.getElementById("streakLine");
+    if (rainbowUnlocked){
+      sl.textContent = "★★★★★ にじいろドラゴンが いるよ！";
+      sl.style.visibility = "visible";
+    } else if (winStreak >= 2){
+      var stars = "";
+      for (var i=0;i<winStreak && i<5;i++) stars += "★";
+      sl.textContent = stars + " " + winStreak + "れんしょうちゅう！" + (winStreak >= 3 ? " あと" + (5 - winStreak) + "かちで なにか おきるかも…？" : "");
+      sl.style.visibility = "visible";
+    } else if (winStreak === 1){
+      sl.textContent = "★ 1れんしょう！";
+      sl.style.visibility = "visible";
+    } else {
+      sl.textContent = "";
+      sl.style.visibility = "hidden";
+    }
+  }
+
+  /* ===== かくしベイ出現演出（ファンファーレ＋キラキラ） ===== */
+  var unlockFxEl = document.getElementById("unlockFx");
+  var unlockFxTimer = 0;
+  function hideUnlockFx(){
+    unlockFxEl.style.display = "none";
+    var stars = unlockFxEl.querySelectorAll(".starFx");
+    for (var i=0;i<stars.length;i++) stars[i].remove();
+    if (unlockFxTimer){ clearTimeout(unlockFxTimer); unlockFxTimer = 0; }
+  }
+  function showUnlockFx(){
+    unlockFxEl.style.display = "flex";
+    SFX.fanfare();
+    if (navigator.vibrate) navigator.vibrate([60,40,60,40,140]);
+    var colors = ["#ffd23f","#ff8a3c","#7dd3fc","#a5f3a1","#f0abfc","#ffffff"];
+    for (var i=0;i<26;i++){
+      var s = document.createElement("span");
+      s.className = "starFx";
+      s.textContent = "★";
+      s.style.left = (Math.random()*96) + "%";
+      s.style.top = (Math.random()*92) + "%";
+      s.style.fontSize = (14 + Math.random()*30) + "px";
+      s.style.color = colors[i % colors.length];
+      s.style.animationDelay = (Math.random()*0.7) + "s";
+      unlockFxEl.appendChild(s);
+    }
+    unlockFxTimer = setTimeout(hideUnlockFx, 3600);
+  }
+  unlockFxEl.addEventListener("click", hideUnlockFx);
 
   /* ===== カード内テキストの自動フィット =====
      CSSの文字数別サイズ（data-len）だけでは端末幅によってはまだ
@@ -770,7 +950,7 @@
 
   function makeBeyEl(b){
     var el = document.createElement("div");
-    el.className = "bey";
+    el.className = "bey" + (b.rainbow ? " rainbowFx big" : "");
     el.innerHTML = beySVG(b);
     stadium.appendChild(el);
     return el;
@@ -912,8 +1092,8 @@
     var r = stadium.clientWidth, size = r*0.162;
     /* プレイヤーはゲージ100。CPUは基礎倍率ぶんだけ上限が大きい */
     P = [
-      { b:myBey,  el:makeBeyEl(myBey),  x:r*0.30, y:r*0.62, vx:0, vy:0, ang:0, spin:0, max:100,               me:true,  dir:1,  clashCd:0, kickT:0, recoverT:1.8, orbitCum:0, orbitAng:null, shrinkStart:null, baseUx:null, baseUy:null, baseTx:null, baseTy:null, ringOut:false, ringOutDx:null, ringOutDy:null },
-      { b:cpuBey, el:makeBeyEl(cpuBey), x:r*0.70, y:r*0.38, vx:0, vy:0, ang:0, spin:0, max:100*cpuBey.cpuMult, me:false, dir:-1, clashCd:0, kickT:0, recoverT:1.8, orbitCum:0, orbitAng:null, shrinkStart:null, baseUx:null, baseUy:null, baseTx:null, baseTy:null, ringOut:false, ringOutDx:null, ringOutDy:null }
+      { b:myBey,  el:makeBeyEl(myBey),  sizeMul:(myBey.sizeMul||1), x:r*0.30, y:r*0.62, vx:0, vy:0, ang:0, spin:0, max:100,               me:true,  dir:1,  clashCd:0, kickT:0, recoverT:1.8, orbitCum:0, orbitAng:null, shrinkStart:null, baseUx:null, baseUy:null, baseTx:null, baseTy:null, ringOut:false, ringOutDx:null, ringOutDy:null },
+      { b:cpuBey, el:makeBeyEl(cpuBey), sizeMul:1, x:r*0.70, y:r*0.38, vx:0, vy:0, ang:0, spin:0, max:100*cpuBey.cpuMult, me:false, dir:-1, clashCd:0, kickT:0, recoverT:1.8, orbitCum:0, orbitAng:null, shrinkStart:null, baseUx:null, baseUy:null, baseTx:null, baseTy:null, ringOut:false, ringOutDx:null, ringOutDy:null }
     ];
     P.forEach(function(p){
       p.el.style.transform = "translate("+(p.x-size/2)+"px,"+(p.y-size/2)+"px)";
@@ -1406,7 +1586,8 @@
     if (P.length===2){
       var a=P[0], b=P[1];
       var dx=b.x-a.x, dy=b.y-a.y, dist=Math.hypot(dx,dy);
-      var hitDist = size*0.92;
+      /* 当たり判定の距離は両ベイの平均サイズで決める（かくしベイは約1.1倍） */
+      var hitDist = size*0.92 * (((a.sizeMul||1) + (b.sizeMul||1)) / 2);
       if (dist < hitDist && dist > 0.01){
         var nx=dx/dist, ny=dy/dist;
         /* めり込みを両方で半分ずつ押し戻す */
@@ -1651,6 +1832,16 @@
     if (raf) cancelAnimationFrame(raf);
     var winner = (loser === P[0]) ? P[1] : P[0];
     var iWin = winner.me;
+    /* ===== 連勝＆かくしベイ（メモリ上のみ・保存しない） =====
+       勝てば連勝+1、5連勝で にじいろドラゴン が出現する。
+       負けた時点で連勝も出現状態も消える */
+    if (iWin){
+      winStreak++;
+      if (winStreak >= 5 && !rainbowUnlocked){ rainbowUnlocked = true; rainbowJustAppeared = true; }
+    } else {
+      winStreak = 0;
+      rainbowUnlocked = false;
+    }
 
     if (burst){
       SFX.burst();
@@ -1797,6 +1988,8 @@
   /* ===== リセット ===== */
   function reset(){
     state = "pick";
+    /* かくしベイが消えたあと、虹ベイが選ばれたまま残らないようにする */
+    if (!rainbowUnlocked && myBey && myBey.rainbow) myBey = null;
     document.body.classList.remove("battling");
     hitstopT = 0; shakeT = 0; hitShakeA = 0; hitShakeB = 0;
     stadium.style.transform = "";
@@ -1816,6 +2009,13 @@
     shootBtn.disabled = !myBey;
     hintEl.textContent = myBey ? "したの ボタンを おしてね！" : "ベイを えらぶと シュートできるよ";
     if (myBey) preview(); else clearStage();
+    /* 連勝表示とかくしベイのカードを最新状態に合わせ、
+       ちょうど5連勝が決まった回だけ出現演出を出す */
+    updatePickExtras();
+    if (rainbowJustAppeared){
+      rainbowJustAppeared = false;
+      showUnlockFx();
+    }
   }
   document.getElementById("againBtn2").addEventListener("click", function(){ audio(); SFX.pick(); reset(); });
 
