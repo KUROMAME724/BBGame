@@ -273,7 +273,7 @@
   @media (prefers-reduced-motion: reduce){
     .confetti{display:none;}
   }
-  /* ---------- かくしベイ（にじいろドラゴン） ---------- */
+  /* ---------- かくしベイ（にじいろフェニックス） ---------- */
   /* 連勝表示：min-height で場所だけ確保し、出入りでレイアウトが揺れないようにする */
   #streakLine{
     min-height:1.5em; margin-top:2px;
@@ -296,7 +296,7 @@
   }
   .rainbowChoice:active{transform:scale(.97);}
   .rainbowChoice.sel{box-shadow:0 0 0 3px var(--accent), 0 0 30px rgba(245,185,66,.8), 0 12px 26px rgba(10,18,34,.25); transform:scale(1.02);}
-  .rainbowChoice svg{width:64px; height:64px; flex:none; transform:scale(1.1);}
+  .rainbowChoice svg{width:64px; height:64px; flex:none; transform:scale(1.25);}
   .rainbowChoice .cname{font-family:var(--disp); font-size:clamp(20px,5.5vw,30px); font-weight:900; white-space:nowrap;}
   .rainbowChoice .ctype{font-size:clamp(12px,3.4vw,16px); font-weight:900; padding:3px 8px; border-radius:6px; background:rgba(168,85,247,.16); color:#7e22ce; white-space:nowrap;}
   @media (prefers-color-scheme: dark){
@@ -319,8 +319,9 @@
   .rainbowFx svg{animation:hueSpin 2.8s linear infinite;}
   @keyframes hueSpin{from{filter:hue-rotate(0deg);}to{filter:hue-rotate(360deg);}}
   .bey.wobble.rainbowFx svg{animation:wob .28s ease-in-out infinite alternate, hueSpin 2.8s linear infinite;}
-  /* 他のベイより約1.1倍大きい（見た目だけ。中心位置はそのまま） */
-  .bey.big svg{transform:scale(1.1);}
+  /* 他のベイより約1.25倍大きい（見た目だけ。中心位置はそのまま。
+     当たり判定側も sizeMul 1.25 で揃えてある） */
+  .bey.big svg{transform:scale(1.25);}
   @media (prefers-reduced-motion: reduce){
     .rainbowFx svg, .bey.wobble.rainbowFx svg{animation:none;}
     .starFx{display:none;}
@@ -459,7 +460,7 @@
   <div class="unlockCard">
     <div class="unlockBey rainbowFx" id="unlockBey"></div>
     <div class="unlockBig">かくしベイが<br>あらわれた！</div>
-    <div class="unlockName">にじいろドラゴン</div>
+    <div class="unlockName">にじいろフェニックス</div>
     <div class="unlockTrait">バラバラに ならない！</div>
     <div class="unlockTap">タップで とじる</div>
   </div>
@@ -558,7 +559,11 @@
        guardは標準よりほんの少しだけ良く、decayは普通 */
     { id:"kabuto", name:"はがねカブト",   type:"バランス",     tip:"balance",main:"#2b2b2b", dark:"#92600a", light:"#facc15", blades:6, atk:1.1,  decay:5.0, guard:0.9,  speedMul:1.05 }
   ];
-  /* ===== かくしベイ：にじいろドラゴン（プレイヤー専用） =====
+  /* ===== かくしベイ：にじいろフェニックス（プレイヤー専用） =====
+     モチーフは鳥（フェニックス）：既存の「ほのおドラゴン」と名前も
+     意匠も被らないようにした。beySVG では phoenix フラグで、
+     内側の模様がドットではなく羽根（しずく型）のリングになり、
+     上に冠羽・下に尾羽の扇が付く。
      BEYS には入れない：選択グリッドにも、CPU の抽選プールにも混ざらない。
      出現条件は「5連勝」。出現後は負けるまで選択画面に出続け、
      連勝カウントも出現状態もメモリ上のみ（保存しない）なので、
@@ -567,12 +572,12 @@
      decay 1.2（持久クラス）、guard 0.55（タートル超え・ゴーレム未満）、
      周回も速め。どの1項目も既存の最高値は超えず、総合力で最強クラスに
      収める（壊れ性能にはしない）。見た目は虹色（色相回転）で、
-     大きさは他のベイの約1.1倍（sizeMul）。
+     大きさは他のベイの約1.25倍（sizeMul。見た目の scale と一致）。
      特性：バーストしない（noBurst）。相手の攻撃でバラバラになる
      決着はこのベイには発生せず、負け方は回転が止まる（スピン）や
      場外のみ。特性はベイ自体に紐づくので、将来 CPU が使う場合でも
      同じくバーストしない */
-  var RAINBOW_BEY = { id:"rainbow", name:"にじいろドラゴン", type:"バランス", tip:"balance", main:"#f43f5e", dark:"#881337", light:"#ffe4e6", blades:6, atk:1.35, decay:1.2, guard:0.55, speedMul:1.1, sizeMul:1.1, rainbow:true, noBurst:true };
+  var RAINBOW_BEY = { id:"rainbow", name:"にじいろフェニックス", type:"バランス", tip:"balance", main:"#f97316", dark:"#7c2d12", light:"#fed7aa", blades:9, atk:1.35, decay:1.2, guard:0.55, speedMul:1.1, sizeMul:1.25, rainbow:true, phoenix:true, noBurst:true };
   /* ゲージ満タン量（プレイヤー側）。CPU側は基礎倍率ぶんだけ変わる（通常戦は1.15倍、ボス戦は合計で約1.36倍） */
 
   function beySVG(b){
@@ -604,11 +609,30 @@
       var dp = C(49, step*j);
       dots += '<circle cx="'+dp[0].toFixed(1)+'" cy="'+dp[1].toFixed(1)+'" r="4.5" fill="'+b.dark+'"/>';
     }
+    var inner = dots;
+    if (b.phoenix){
+      /* フェニックス意匠：ドットの代わりに、先の尖った羽根（しずく型）を
+         放射状に並べて鳥の羽根らしさを出す。さらに上（0°方向）に
+         3本の冠羽、下（180°方向）に尾羽の扇を付け、真上から見ても
+         「鳥」と分かるシルエットにする。色は虹色の色相回転に乗るので
+         ベースは炎色（オレンジ系）で統一する */
+      inner = "";
+      for (var f=0; f<b.blades; f++){
+        var fp = C(49, step*f);
+        inner += '<path d="M0 11 Q7.5 0 0 -13 Q-7.5 0 0 11 Z" fill="'+b.dark+'" transform="translate('+fp[0].toFixed(1)+' '+fp[1].toFixed(1)+') rotate('+(step*f)+')"/>';
+      }
+      /* 冠羽（上）と尾羽（下）：少し大きく、明色で縁取る */
+      var fan = [[-26,0],[0,0],[26,0],[-24,180],[0,180],[24,180]];
+      for (var g=0; g<fan.length; g++){
+        var gp = C(71, fan[g][1] + fan[g][0]);
+        inner += '<path d="M0 12 Q8 0 0 -15 Q-8 0 0 12 Z" fill="'+b.light+'" stroke="'+b.dark+'" stroke-width="2.5" transform="translate('+gp[0].toFixed(1)+' '+gp[1].toFixed(1)+') rotate('+(fan[g][1] + fan[g][0])+')"/>';
+      }
+    }
     return '' +
     '<svg viewBox="0 0 200 200" aria-hidden="true">' +
       '<path d="'+outline+'" fill="'+b.main+'" stroke="'+b.dark+'" stroke-width="5" stroke-linejoin="round"/>' +
       '<circle cx="100" cy="100" r="58" fill="'+b.main+'" stroke="'+b.dark+'" stroke-width="5"/>' +
-      dots +
+      inner +
       '<circle cx="100" cy="100" r="40" fill="'+b.light+'"/>' +
       '<circle cx="100" cy="100" r="21" fill="#ffffff" stroke="'+b.dark+'" stroke-width="4"/>' +
       '<circle cx="100" cy="100" r="8" fill="'+b.dark+'"/>' +
@@ -893,7 +917,7 @@
     if (rainbowBtn) rainbowBtn.classList.toggle("sel", !!(myBey && myBey.rainbow));
     var sl = document.getElementById("streakLine");
     if (rainbowUnlocked){
-      sl.textContent = "★★★★★ にじいろドラゴンが いるよ！";
+      sl.textContent = "★★★★★ にじいろフェニックスが いるよ！";
       sl.style.visibility = "visible";
     } else if (winStreak >= 2){
       var stars = "";
@@ -1605,7 +1629,7 @@
     if (P.length===2){
       var a=P[0], b=P[1];
       var dx=b.x-a.x, dy=b.y-a.y, dist=Math.hypot(dx,dy);
-      /* 当たり判定の距離は両ベイの平均サイズで決める（かくしベイは約1.1倍） */
+      /* 当たり判定の距離は両ベイの平均サイズで決める（かくしベイは約1.25倍） */
       var hitDist = size*0.92 * (((a.sizeMul||1) + (b.sizeMul||1)) / 2);
       if (dist < hitDist && dist > 0.01){
         var nx=dx/dist, ny=dy/dist;
@@ -1758,7 +1782,7 @@
              下げた（攻撃タイプ 1%／その他 0.75%）。
              攻撃タイプの強い一撃を受けたときは少しだけ起きやすい
              （両者同じルール）。通常ヒットではバーストしない。
-             例外：noBurst のベイ（にじいろドラゴン）はバーストしない。
+             例外：noBurst のベイ（にじいろフェニックス）はバーストしない。
              特性はベイ自体に紐づくので、どちらの側が使っても効く */
           if (hard){
             var burstThreshA = (b.b.tip === "flat") ? 0.30 : 0.22;
@@ -1856,7 +1880,7 @@
     var winner = (loser === P[0]) ? P[1] : P[0];
     var iWin = winner.me;
     /* ===== 連勝＆かくしベイ（メモリ上のみ・保存しない） =====
-       勝てば連勝+1、5連勝で にじいろドラゴン が出現する。
+       勝てば連勝+1、5連勝で にじいろフェニックス が出現する。
        負けた時点で連勝も出現状態も消える */
     if (iWin){
       winStreak++;
