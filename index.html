@@ -633,6 +633,9 @@
       '<path d="'+outline+'" fill="'+b.main+'" stroke="'+b.dark+'" stroke-width="5" stroke-linejoin="round"/>' +
       '<circle cx="100" cy="100" r="58" fill="'+b.main+'" stroke="'+b.dark+'" stroke-width="5"/>' +
       inner +
+      /* 回転マーカー：外周に1か所だけ色の違う小ドットを置く。
+         意匠が左右対称でも、この非対称な目印で自転が目で追える */
+      '<circle cx="100" cy="30" r="7" fill="#ffffff" stroke="'+b.dark+'" stroke-width="3"/>' +
       '<circle cx="100" cy="100" r="40" fill="'+b.light+'"/>' +
       '<circle cx="100" cy="100" r="21" fill="#ffffff" stroke="'+b.dark+'" stroke-width="4"/>' +
       '<circle cx="100" cy="100" r="8" fill="'+b.dark+'"/>' +
@@ -1611,7 +1614,11 @@
           if (dot > r*0.4){ sparks(p.x, p.y, 6); SFX.clash(false); p.spin -= 1.2; }
         }
       }
-      p.ang += dt * (p.me?1:-1) * p.spin * 0.80;
+      /* 自転は見た目だけの演出（物理・ゲージには一切影響しない）。
+         残りゲージ比率に連動させ、満タン時は約1440°/秒（1秒に4回転）、
+         弱っても下限15%ぶん（約216°/秒）の回転が残って目に見えるようにする。
+         向きは従来通り自機＋／CPU− */
+      p.ang += dt * (p.me?1:-1) * 1440 * (0.15 + 0.85 * speedRatio);
       /* ヒットストップ中の震えは見た目だけ：判定位置(p.x/p.y)は動かさず、
          transformに小さなランダムオフセットを足すだけ。
          受けた側(hitShake大)が大きく、与えた側は小さく震える */
